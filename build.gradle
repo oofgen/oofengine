@@ -6,6 +6,7 @@ buildscript {
 
 apply plugin: 'java'
 apply plugin: 'eclipse'
+apply plugin: 'application'
 apply plugin: 'idea'
 
 group 'oof'
@@ -16,6 +17,7 @@ project.ext.lwjglNatives = "natives-macos"
 
 sourceCompatibility = 1.8
 targetCompatibility = 1.8
+mainClassName = "oof.oofengine.OofEngineApplication"
 
 repositories {
 
