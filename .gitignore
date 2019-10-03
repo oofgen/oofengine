@@ -1,0 +1,45 @@
+# gradle files
+.gradle/
+build/
+
+# eclipse files
+.classpath
+.project
+.settings/
+bin/
+eclipse-classes/
+out/
+
+# idea files
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# temp
+application.pid
+
+# OSX files
+.DS_Store
+
+# sublime files
+*.sublime-project
+*.sublime-workspace
+
+# misc
+LOG_FILE_IS_UNDEFINED
+
+# Benchmark Results Files
+.benchmarks.mv.db
+benchmark-lists.html
+benchmark-lists.jsonp
+*.html
+*.jsonp
+/out/
+/.gradle/
+/deployer/
+/dist/
+!/deployer/
+
+# developer project files
+config/application-dev.yml
