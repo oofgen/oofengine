@@ -13,7 +13,7 @@ import java.net.URL;
 import java.util.Arrays;
 
 public class OofEngineApplication {
-    public static void main(String[] args) {
+    public static void main(String[] args) throws InterruptedException {
         Logger logger = LoggerFactory.getLogger(OofEngineApplication.class);
 
         //logger.info("Hello Oof!");

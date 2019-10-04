@@ -78,7 +78,7 @@ public class Introduction {
      * The main function will create a 640x480 window and renders a rotating
      * triangle until the window gets closed.he command line arguments
      */
-    public static void run() {
+    public static void run() throws InterruptedException {
         long window;
 
         /* Set the error callback */
@@ -117,8 +117,10 @@ public class Introduction {
         IntBuffer width = MemoryUtil.memAllocInt(1);
         IntBuffer height = MemoryUtil.memAllocInt(1);
 
+        int i = 0;
+
         /* Loop until window gets closed */
-        while (!glfwWindowShouldClose(window)) {
+
             float ratio;
 
             /* Get width and height to calcualte the ratio */
@@ -160,9 +162,8 @@ public class Introduction {
             /* Flip buffers for next loop */
             width.flip();
             height.flip();
-        }
 
-        serializeCurrentFrame(width, height);
+        serializeCurrentFrame(width, height, window);
 
         /* Free buffers */
         MemoryUtil.memFree(width);
@@ -177,7 +178,8 @@ public class Introduction {
         errorCallback.free();
     }
 
-    private static void serializeCurrentFrame(IntBuffer _width, IntBuffer _height) {
+    private static void serializeCurrentFrame(IntBuffer _width, IntBuffer _height, long window) {
+        glfwSwapBuffers(window);
 
         int width = _width.get();
         int height = _height.get();
