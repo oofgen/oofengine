@@ -14,7 +14,7 @@ public class OofEngineApplication {
         WindowManager win = new WindowManager();
         Loader loader = new Loader();
         Renderer renderer = new Renderer();
-//        StaticShader shader = new StaticShader();
+        StaticShader shader = new StaticShader();
 
 
         float[] vertices = {
@@ -33,15 +33,15 @@ public class OofEngineApplication {
 
         int i = 0;
         while (i < 150) {
-//            shader.start();
+            shader.start();
             renderer.prepare();
             renderer.render(model);
             win.updateWindow();
-//            shader.stop();
+            shader.stop();
             i++;
         }
 
-//        shader.cleanUp();
+        shader.cleanUp();
         loader.cleanUp();
         win.closeWindow();
     }
