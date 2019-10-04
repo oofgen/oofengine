@@ -18,8 +18,10 @@ public class OofEngineApplication {
 
         OofConfig oofConfig = new OofConfig()
                 .withHeightPx(512)
+                //.withDebugMode()
                 .withWidthPx(512)
                 .validate();
+
 
 
         Sandbox sandbox = new Sandbox(oofConfig);

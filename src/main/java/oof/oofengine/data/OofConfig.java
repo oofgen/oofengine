@@ -4,6 +4,16 @@ import java.io.File;
 
 public class OofConfig {
 
+    private boolean debug = false;
+
+    public void setDebug(boolean debug) {
+        this.debug = debug;
+    }
+    public OofConfig withDebugMode() {
+        this.debug = true;
+        return this;
+    }
+
     private int widthPx;
     private int heightPx;
     private File oofModel;
@@ -41,5 +51,9 @@ public class OofConfig {
     public OofConfig validate() {
         // TODO
         return this;
+    }
+
+    public boolean debug() {
+        return debug;
     }
 }
