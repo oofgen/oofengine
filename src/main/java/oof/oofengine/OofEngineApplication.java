@@ -27,9 +27,9 @@ public class OofEngineApplication {
 
 
         Sandbox sandbox = new Sandbox(oofConfig);
-        //sandbox.run();
+        sandbox.run();
 
-        Introduction.run();
+        //Introduction.run();
 
         //new RenderToPng().run();
     }

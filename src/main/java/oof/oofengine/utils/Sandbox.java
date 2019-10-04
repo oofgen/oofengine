@@ -47,7 +47,7 @@ public class Sandbox {
         }
 
         render();
-        serializeCurrentFrame();
+        serializeCurrentFrame(window);
 
         // Free the window callbacks and destroy the window
         glfwFreeCallbacks(window);
@@ -65,58 +65,52 @@ public class Sandbox {
         IntBuffer height = MemoryUtil.memAllocInt(1);
 
         float ratio;
-        int i = 0;
 
-        while(i < 2) {
-            /* Get width and height to calcualte the ratio */
-            glfwGetFramebufferSize(window, width, height);
-            ratio = width.get() / (float) height.get();
+        /* Get width and height to calcualte the ratio */
+        glfwGetFramebufferSize(window, width, height);
+        ratio = width.get() / (float) height.get();
 
-            /* Rewind buffers for next get */
-            width.rewind();
-            height.rewind();
 
-            /* Set viewport and clear screen */
-            glViewport(0, 0, width.get(), height.get());
-            glClear(GL_COLOR_BUFFER_BIT);
+        /* Rewind buffers for next get */
+        width.rewind();
+        height.rewind();
 
-            /* Set ortographic projection */
-            glMatrixMode(GL_PROJECTION);
-            glLoadIdentity();
-            glOrtho(-ratio, ratio, -1f, 1f, 1f, -1f);
-            glMatrixMode(GL_MODELVIEW);
+        /* Set viewport and clear screen */
+        glViewport(0, 0, width.get(), height.get());
+        glClear(GL_COLOR_BUFFER_BIT);
 
-            /* Rotate matrix */
+        /* Set ortographic projection */
+        glMatrixMode(GL_PROJECTION);
+        glLoadIdentity();
+        glOrtho(-ratio, ratio, -1f, 1f, 1f, -1f);
+        glMatrixMode(GL_MODELVIEW);
 
-            glLoadIdentity();
-            glRotatef((float) glfwGetTime() * 50f, 0f, 0f, 1f);
+        /* Rotate matrix */
 
-            // set color
-            glClearColor(0, 255, 255, 0.10f);
+        glLoadIdentity();
+        glRotatef((float) glfwGetTime() * 50f, 0f, 0f, 1f);
 
-            /* Render triangle */
-            glBegin(GL_TRIANGLES);
-            glColor3f(1f, 0f, 0f);
-            glVertex3f(-0.6f, -0.4f, 0f);
-            glColor3f(0f, 1f, 0f);
-            glVertex3f(0.6f, -0.4f, 0f);
-            glColor3f(0f, 0f, 1f);
-            glVertex3f(0f, 0.6f, 0f);
-            glEnd();
+        // set color
+        glClearColor(0, 255, 255, 0.10f);
 
-            /* Swap buffers and poll Events */
-            glfwSwapBuffers(window);
-            glfwPollEvents();
-
-            i++;
-        }
+        /* Render triangle */
+        glBegin(GL_TRIANGLES);
+        glColor3f(1f, 0f, 0f);
+        glVertex3f(-0.6f, -0.4f, 0f);
+        glColor3f(0f, 1f, 0f);
+        glVertex3f(0.6f, -0.4f, 0f);
+        glColor3f(0f, 0f, 1f);
+        glVertex3f(0f, 0.6f, 0f);
+        glEnd();
     }
 
-    private void serializeCurrentFrame() {
-        glfwMakeContextCurrent(window);
+    private static void serializeCurrentFrame(long windowId) {
+        IntBuffer _width = MemoryUtil.memAllocInt(1);
+        IntBuffer _height = MemoryUtil.memAllocInt(1);
+        glfwGetFramebufferSize(windowId, _width, _height);
 
-        int width = config.getWidthPx();
-        int height = config.getHeightPx();
+        int width = _width.get();
+        int height = _height.get();
 
         int bytesPerPixel = 4; // r, g, b, a
         ByteBuffer buffer = BufferUtils.createByteBuffer(width * height * bytesPerPixel);
@@ -126,7 +120,7 @@ public class Sandbox {
         encodePNG(width, height, bytesPerPixel, buffer, imageFile);
     }
 
-    private void encodePNG(int width, int height, int bytesPerPixel, ByteBuffer buffer, String imagePath) {
+    private static void encodePNG(int width, int height, int bytesPerPixel, ByteBuffer buffer, String imagePath) {
         String format = "PNG";
         imagePath = imagePath.concat(".").concat(format.toLowerCase());
         File imageFile = new File(imagePath);

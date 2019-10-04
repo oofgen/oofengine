@@ -155,10 +155,6 @@ public class Introduction {
             glVertex3f(0f, 0.6f, 0f);
             glEnd();
 
-            /* Swap buffers and poll Events */
-            glfwSwapBuffers(window);
-            glfwPollEvents();
-
             /* Flip buffers for next loop */
             width.flip();
             height.flip();
@@ -179,8 +175,6 @@ public class Introduction {
     }
 
     private static void serializeCurrentFrame(IntBuffer _width, IntBuffer _height, long window) {
-        glfwSwapBuffers(window);
-
         int width = _width.get();
         int height = _height.get();
 
