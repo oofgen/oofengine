@@ -2,6 +2,8 @@ package oof.oofengine;
 
 import oof.oofengine.data.Object3D;
 import oof.oofengine.data.OofConfig;
+import oof.oofengine.utils.Introduction;
+import oof.oofengine.utils.RenderToPng;
 import oof.oofengine.utils.Sandbox;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,6 +27,10 @@ public class OofEngineApplication {
 
 
         Sandbox sandbox = new Sandbox(oofConfig);
-        sandbox.run();
+        //sandbox.run();
+
+        Introduction.run();
+
+        //new RenderToPng().run();
     }
 }

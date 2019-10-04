@@ -45,7 +45,9 @@ public class Sandbox {
         if(config.debug()) {
             loop();
         }
+
         render();
+        serializeCurrentFrame();
 
         // Free the window callbacks and destroy the window
         glfwFreeCallbacks(window);
@@ -57,28 +59,77 @@ public class Sandbox {
     }
 
     private void render() {
-        GL.createCapabilities();
+
+        /* Declare buffers for using inside the loop */
+        IntBuffer width = MemoryUtil.memAllocInt(1);
+        IntBuffer height = MemoryUtil.memAllocInt(1);
+
+        float ratio;
+        int i = 0;
+
+        while(i < 2) {
+            /* Get width and height to calcualte the ratio */
+            glfwGetFramebufferSize(window, width, height);
+            ratio = width.get() / (float) height.get();
+
+            /* Rewind buffers for next get */
+            width.rewind();
+            height.rewind();
+
+            /* Set viewport and clear screen */
+            glViewport(0, 0, width.get(), height.get());
+            glClear(GL_COLOR_BUFFER_BIT);
+
+            /* Set ortographic projection */
+            glMatrixMode(GL_PROJECTION);
+            glLoadIdentity();
+            glOrtho(-ratio, ratio, -1f, 1f, 1f, -1f);
+            glMatrixMode(GL_MODELVIEW);
+
+            /* Rotate matrix */
+
+            glLoadIdentity();
+            glRotatef((float) glfwGetTime() * 50f, 0f, 0f, 1f);
+
+            // set color
+            glClearColor(0, 255, 255, 0.10f);
+
+            /* Render triangle */
+            glBegin(GL_TRIANGLES);
+            glColor3f(1f, 0f, 0f);
+            glVertex3f(-0.6f, -0.4f, 0f);
+            glColor3f(0f, 1f, 0f);
+            glVertex3f(0.6f, -0.4f, 0f);
+            glColor3f(0f, 0f, 1f);
+            glVertex3f(0f, 0.6f, 0f);
+            glEnd();
+
+            /* Swap buffers and poll Events */
+            glfwSwapBuffers(window);
+            glfwPollEvents();
+
+            i++;
+        }
+    }
+
+    private void serializeCurrentFrame() {
+        glfwMakeContextCurrent(window);
 
         int width = config.getWidthPx();
         int height = config.getHeightPx();
-
-        // Set the clear color
-        glClearColor(125, 125, 125, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // clear the framebuffer
-        glfwSwapBuffers(window); // swap the color buffers
 
         int bytesPerPixel = 4; // r, g, b, a
         ByteBuffer buffer = BufferUtils.createByteBuffer(width * height * bytesPerPixel);
         glReadPixels(0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, buffer);
 
-        File imageFile = new File("image.png");
-        takeScreenshot(width, height, bytesPerPixel, buffer, imageFile);
-
-
+        String imageFile = "image";
+        encodePNG(width, height, bytesPerPixel, buffer, imageFile);
     }
 
-    private void takeScreenshot(int width, int height, int bytesPerPixel, ByteBuffer buffer, File imageFile) {
+    private void encodePNG(int width, int height, int bytesPerPixel, ByteBuffer buffer, String imagePath) {
         String format = "PNG";
+        imagePath = imagePath.concat(".").concat(format.toLowerCase());
+        File imageFile = new File(imagePath);
         BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
 
         for(int x = 0; x < width; x++) {
@@ -150,6 +201,7 @@ public class Sandbox {
         glfwMakeContextCurrent(window);
         // Enable v-sync
         glfwSwapInterval(1);
+        GL.createCapabilities();
 
         // Make the window visible
         if(config.debug()) {
@@ -168,7 +220,7 @@ public class Sandbox {
         glfwMakeContextCurrent(window);
 
         // Set the clear color
-        glClearColor(255, 255, 255, 0.5f);
+        glClearColor(0, 255, 255, 0.10f);
 
         // Run the rendering loop until the user has attempted to close
         // the window or has pressed the ESCAPE key.
