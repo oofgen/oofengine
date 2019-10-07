@@ -43,3 +43,6 @@ benchmark-lists.jsonp
 
 # developer project files
 config/application-dev.yml
+
+# error logs
+hs_err_pid*
