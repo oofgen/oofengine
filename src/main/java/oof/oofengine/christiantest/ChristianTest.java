@@ -7,9 +7,7 @@ package oof.oofengine.christiantest;
 import oof.oofengine.data.Material;
 import oof.oofengine.data.Mesh;
 import oof.oofengine.data.Model;
-import org.joml.Matrix3f;
-import org.joml.Matrix4f;
-import org.joml.Vector3f;
+import org.joml.*;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.PointerBuffer;
 import org.lwjgl.assimp.*;
@@ -22,6 +20,7 @@ import static org.lwjgl.glfw.GLFW.*;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.Math;
 import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
@@ -75,7 +74,7 @@ public class ChristianTest {
     Model model;
 
     Matrix4f modelMatrix = new Matrix4f().rotateY(0.5f * (float) Math.PI).scale(1.5f, 1.5f, 1.5f);
-    Vector3f modelPosition = new Vector3f();
+    Vector3f modelPosition = new Vector3f((float) -2.000E+1, 6, (float) 2.300E+1);
     Matrix4f viewMatrix = new Matrix4f();
     Matrix4f projectionMatrix = new Matrix4f();
     Matrix4f viewProjectionMatrix = new Matrix4f();
@@ -209,6 +208,51 @@ public class ChristianTest {
                 }
             }
         });
+
+        glfwSetKeyCallback(window, keyCallback = new GLFWKeyCallback() {
+            @Override
+            public void invoke(long window, int key, int scancode, int action, int mods) {
+                if (action != GLFW_REPEAT) {
+                    return;
+                }
+                switch(key) {
+                    case GLFW_KEY_U:
+                        modifyPosition(new Vector4f(0.1f, 0.0f, 0.0f, 0.0f));
+                        break;
+                    case GLFW_KEY_I:
+                        modifyPosition(new Vector4f(-0.1f, 0.0f, 0.0f, 0.0f));
+                        break;
+                    case GLFW_KEY_J:
+                        modifyPosition(new Vector4f(0.0f, 0.1f, 0.0f, 0.0f));
+                        break;
+                    case GLFW_KEY_K:
+                        modifyPosition(new Vector4f(0.0f, -0.1f, 0.0f, 0.0f));
+                        break;
+                    case GLFW_KEY_N:
+                        modifyPosition(new Vector4f(0.0f, 0.0f, 0.1f, 0.0f));
+                        break;
+                    case GLFW_KEY_M:
+                        modifyPosition(new Vector4f(0.0f, 0.0f, -0.1f, 0.0f));
+                        break;
+                    case GLFW_KEY_SPACE:
+                        printDebugInfo();
+                        break;
+                }
+            }
+        });
+    }
+
+    private void modifyPosition(Vector4f axisAdjustmentVector) {
+        Vector4f vector = new Vector4f();
+        vector = modelMatrix.getColumn(3, vector);
+        vector.add(axisAdjustmentVector);
+        modelMatrix.setColumn(3, vector);
+    }
+
+    private void printDebugInfo() {
+        print("Debug Info:");
+        print("modelpos = ".concat(modelPosition.toString()));
+        print("modelMatrix = ".concat("\n").concat(modelMatrix.toString()));
     }
 
     private void loadModel() {
@@ -344,7 +388,8 @@ public class ChristianTest {
 
         // actually set position and angle of the camera with previous variable
         viewMatrix.setLookAt(viewPosition.x, viewPosition.y, viewPosition.z,
-                0f, 0f, 0f,
+                modelPosition.x, modelPosition.y, modelPosition.z,
+                //0f, 0f, 0f,
                 0f, 1f, 0f
         );
 
@@ -389,16 +434,17 @@ public class ChristianTest {
         int x = 0;
         int y = 0;
 
+        IntBuffer truefbWidth = BufferUtils.createIntBuffer(1);
+        IntBuffer truefbHeight = BufferUtils.createIntBuffer(1);
+
         System.out.println(modelMatrix.toString());
 
         while (!glfwWindowShouldClose(window)) {
             sync(60);
             glfwPollEvents();
 
-            int truefbWidth = fbWidth * 2;
-            int truefbHeight = fbHeight * 2;
-
-            glViewport(x, y, truefbWidth, truefbHeight);
+            glfwGetFramebufferSize(window, truefbWidth, truefbHeight);
+            glViewport(x, y, truefbWidth.asReadOnlyBuffer().get(), truefbHeight.asReadOnlyBuffer().get());
 
             update();
             render();
