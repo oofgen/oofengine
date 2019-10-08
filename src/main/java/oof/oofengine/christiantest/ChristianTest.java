@@ -4,6 +4,9 @@
  */
 package oof.oofengine.christiantest;
 
+import oof.oofengine.data.Material;
+import oof.oofengine.data.Mesh;
+import oof.oofengine.data.Model;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
@@ -15,6 +18,7 @@ import org.lwjgl.opengl.GL;
 import org.lwjgl.opengl.GLCapabilities;
 import org.lwjgl.opengl.GLUtil;
 import org.lwjgl.system.*;
+import static org.lwjgl.glfw.GLFW.*;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -28,13 +32,9 @@ import java.nio.channels.SeekableByteChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.logging.Logger;
 
 import static org.lwjgl.BufferUtils.createByteBuffer;
 import static org.lwjgl.assimp.Assimp.*;
-import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.ARBFragmentShader.*;
 import static org.lwjgl.opengl.ARBShaderObjects.*;
 import static org.lwjgl.opengl.ARBVertexBufferObject.*;
@@ -49,6 +49,8 @@ import static org.lwjgl.system.MemoryUtil.*;
  * @author Zhang Hai
  */
 public class ChristianTest {
+    private long variableYieldTime, lastTime;
+
     long window;
     int width = 1024;
     int height = 768;
@@ -61,6 +63,7 @@ public class ChristianTest {
     int vertexAttribute;
     int normalAttribute;
     int modelMatrixUniform;
+    int modelPositionUniform;
     int viewProjectionMatrixUniform;
     int normalMatrixUniform;
     int lightPositionUniform;
@@ -72,6 +75,7 @@ public class ChristianTest {
     Model model;
 
     Matrix4f modelMatrix = new Matrix4f().rotateY(0.5f * (float) Math.PI).scale(1.5f, 1.5f, 1.5f);
+    Vector3f modelPosition = new Vector3f();
     Matrix4f viewMatrix = new Matrix4f();
     Matrix4f projectionMatrix = new Matrix4f();
     Matrix4f viewProjectionMatrix = new Matrix4f();
@@ -84,6 +88,7 @@ public class ChristianTest {
     private FloatBuffer normalMatrixBuffer = BufferUtils.createFloatBuffer(3 * 3);
     private FloatBuffer lightPositionBuffer = BufferUtils.createFloatBuffer(3);
     private FloatBuffer viewPositionBuffer = BufferUtils.createFloatBuffer(3);
+    private FloatBuffer modelPositionBuffer = BufferUtils.createFloatBuffer(3);
 
     GLCapabilities caps;
     GLFWKeyCallback keyCallback;
@@ -92,7 +97,9 @@ public class ChristianTest {
     GLFWCursorPosCallback cpCallback;
     GLFWScrollCallback sCallback;
     Callback debugProc;
+
     private CharSequence modelPath = "oof/bighead.obj";
+
 
     void init() throws IOException {
 
@@ -110,6 +117,46 @@ public class ChristianTest {
 
         System.out.println("Move the mouse to look around");
         System.out.println("Zoom in/out with mouse wheel");
+
+        setCallbacks();
+
+        GLFWVidMode vidmode = glfwGetVideoMode(glfwGetPrimaryMonitor());
+        glfwSetWindowPos(window, (vidmode.width() - width) / 2, (vidmode.height() - height) / 2);
+        glfwMakeContextCurrent(window);
+        glfwSwapInterval(0);
+        glfwSetCursorPos(window, width / 2, height / 2);
+
+        try (MemoryStack frame = MemoryStack.stackPush()) {
+            IntBuffer framebufferSize = frame.mallocInt(2);
+            nglfwGetFramebufferSize(window, memAddress(framebufferSize), memAddress(framebufferSize) + 4);
+            width = framebufferSize.get(0);
+            height = framebufferSize.get(1);
+        }
+
+        caps = GL.createCapabilities();
+        if (!caps.GL_ARB_shader_objects) {
+            throw new AssertionError("This demo requires the ARB_shader_objects extension.");
+        }
+        if (!caps.GL_ARB_vertex_shader) {
+            throw new AssertionError("This demo requires the ARB_vertex_shader extension.");
+        }
+        if (!caps.GL_ARB_fragment_shader) {
+            throw new AssertionError("This demo requires the ARB_fragment_shader extension.");
+        }
+        debugProc = GLUtil.setupDebugMessageCallback();
+
+        glClearColor(0f, 0f, 0f, 1f);
+        glEnable(GL_DEPTH_TEST);
+
+        /* Create all needed GL resources */
+        loadModel();
+        createShaderProgram();
+
+        /* Show window */
+        glfwShowWindow(window);
+    }
+
+    private void setCallbacks() {
         glfwSetFramebufferSizeCallback(window, fbCallback = new GLFWFramebufferSizeCallback() {
             @Override
             public void invoke(long window, int width, int height) {
@@ -162,46 +209,31 @@ public class ChristianTest {
                 }
             }
         });
-
-        GLFWVidMode vidmode = glfwGetVideoMode(glfwGetPrimaryMonitor());
-        glfwSetWindowPos(window, (vidmode.width() - width) / 2, (vidmode.height() - height) / 2);
-        glfwMakeContextCurrent(window);
-        glfwSwapInterval(0);
-        glfwSetCursorPos(window, width / 2, height / 2);
-
-        try (MemoryStack frame = MemoryStack.stackPush()) {
-            IntBuffer framebufferSize = frame.mallocInt(2);
-            nglfwGetFramebufferSize(window, memAddress(framebufferSize), memAddress(framebufferSize) + 4);
-            width = framebufferSize.get(0);
-            height = framebufferSize.get(1);
-        }
-
-        caps = GL.createCapabilities();
-        if (!caps.GL_ARB_shader_objects) {
-            throw new AssertionError("This demo requires the ARB_shader_objects extension.");
-        }
-        if (!caps.GL_ARB_vertex_shader) {
-            throw new AssertionError("This demo requires the ARB_vertex_shader extension.");
-        }
-        if (!caps.GL_ARB_fragment_shader) {
-            throw new AssertionError("This demo requires the ARB_fragment_shader extension.");
-        }
-        debugProc = GLUtil.setupDebugMessageCallback();
-
-        glClearColor(0f, 0f, 0f, 1f);
-        glEnable(GL_DEPTH_TEST);
-
-        /* Create all needed GL resources */
-        loadModel();
-        createProgram();
-
-        /* Show window */
-        glfwShowWindow(window);
     }
 
-    void loadModel() {
+    private void loadModel() {
         AIFileIO fileIo = AIFileIO.create();
-        AIFileOpenProcI fileOpenProc = new AIFileOpenProc() {
+        AIFileOpenProcI fileOpenProc = createDefaultFileOpenProc();
+        AIFileCloseProcI fileCloseProc = getDefaultFileCloseProc();
+        fileIo.set(fileOpenProc, fileCloseProc, NULL);
+        AIScene scene = aiImportFileEx(modelPath,
+                aiProcess_JoinIdenticalVertices | aiProcess_Triangulate, fileIo);
+        if (scene == null) {
+            throw new IllegalStateException(aiGetErrorString());
+        }
+        model = new Model(scene);
+    }
+
+    private AIFileCloseProc getDefaultFileCloseProc() {
+        return new AIFileCloseProc() {
+            public void invoke(long pFileIO, long pFile) {
+                /* Nothing to do */
+            }
+        };
+    }
+
+    private AIFileOpenProc createDefaultFileOpenProc() {
+        return new AIFileOpenProc() {
             public long invoke(long pFileIO, long fileName, long openMode) {
                 AIFile aiFile = AIFile.create();
                 final ByteBuffer data;
@@ -241,18 +273,6 @@ public class ChristianTest {
                 return aiFile.address();
             }
         };
-        AIFileCloseProcI fileCloseProc = new AIFileCloseProc() {
-            public void invoke(long pFileIO, long pFile) {
-                /* Nothing to do */
-            }
-        };
-        fileIo.set(fileOpenProc, fileCloseProc, NULL);
-        AIScene scene = aiImportFileEx(modelPath,
-                aiProcess_JoinIdenticalVertices | aiProcess_Triangulate, fileIo);
-        if (scene == null) {
-            throw new IllegalStateException(aiGetErrorString());
-        }
-        model = new Model(scene);
     }
 
     static int createShader(String resource, int type) throws IOException {
@@ -275,31 +295,36 @@ public class ChristianTest {
         return shader;
     }
 
-    void createProgram() throws IOException {
+    void createShaderProgram() throws IOException {
 
         program = glCreateProgramObjectARB();
         int vertexShader = createShader("shader/vertexShader.txt",
                 GL_VERTEX_SHADER_ARB);
         int fragmentShader = createShader("shader/fragmentShader.txt",
                 GL_FRAGMENT_SHADER_ARB);
+
         glAttachObjectARB(program, vertexShader);
         glAttachObjectARB(program, fragmentShader);
         glLinkProgramARB(program);
+
         int linkStatus = glGetObjectParameteriARB(program, GL_OBJECT_LINK_STATUS_ARB);
         String programLog = glGetInfoLogARB(program);
+
         if (programLog.trim().length() > 0) {
             System.err.println(programLog);
         }
         if (linkStatus == 0) {
             throw new AssertionError("Could not link program");
         }
-
         glUseProgramObjectARB(program);
+
         vertexAttribute = glGetAttribLocationARB(program, "aVertex");
         glEnableVertexAttribArrayARB(vertexAttribute);
         normalAttribute = glGetAttribLocationARB(program, "aNormal");
         glEnableVertexAttribArrayARB(normalAttribute);
+
         modelMatrixUniform = glGetUniformLocationARB(program, "uModelMatrix");
+        modelPositionUniform = glGetUniformLocationARB(program, "uModelPosition");
         viewProjectionMatrixUniform = glGetUniformLocationARB(program, "uViewProjectionMatrix");
         normalMatrixUniform = glGetUniformLocationARB(program, "uNormalMatrix");
         lightPositionUniform = glGetUniformLocationARB(program, "uLightPosition");
@@ -309,12 +334,22 @@ public class ChristianTest {
         specularColorUniform = glGetUniformLocationARB(program, "uSpecularColor");
     }
 
-    void update() {
+    public void update() {
+        // zoom
         projectionMatrix.setPerspective((float) Math.toRadians(fov), (float) width / height, 0.01f,
                 100.0f);
+
+        // set variable that represents position of the camera
         viewPosition.set(10f * (float) Math.cos(rotation), 10f, 10f * (float) Math.sin(rotation));
-        viewMatrix.setLookAt(viewPosition.x, viewPosition.y, viewPosition.z, 0f, 0f, 0f, 0f, 1f,
-                0f);
+
+        // actually set position and angle of the camera with previous variable
+        viewMatrix.setLookAt(viewPosition.x, viewPosition.y, viewPosition.z,
+                0f, 0f, 0f,
+                0f, 1f, 0f
+        );
+
+        // multiply the projection by the view and store it in the viewProjection.
+        // I think this gives you what is shown on screen.
         projectionMatrix.mul(viewMatrix, viewProjectionMatrix);
     }
 
@@ -322,7 +357,7 @@ public class ChristianTest {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         glUseProgramObjectARB(program);
-        for (Model.Mesh mesh : model.meshes) {
+        for (Mesh mesh : model.meshes) {
 
             glBindBufferARB(GL_ARRAY_BUFFER_ARB, mesh.vertexArrayBuffer);
             glVertexAttribPointerARB(vertexAttribute, 3, GL_FLOAT, false, 0, 0);
@@ -330,14 +365,15 @@ public class ChristianTest {
             glVertexAttribPointerARB(normalAttribute, 3, GL_FLOAT, false, 0, 0);
 
             glUniformMatrix4fvARB(modelMatrixUniform, false, modelMatrix.get(modelMatrixBuffer));
-            glUniformMatrix4fvARB(viewProjectionMatrixUniform, false,
-                    viewProjectionMatrix.get(viewProjectionMatrixBuffer));
+            glUniformMatrix4fvARB(viewProjectionMatrixUniform, false, viewProjectionMatrix.get(viewProjectionMatrixBuffer));
+
             normalMatrix.set(modelMatrix).invert().transpose();
+
             glUniformMatrix3fvARB(normalMatrixUniform, false, normalMatrix.get(normalMatrixBuffer));
             glUniform3fvARB(lightPositionUniform, lightPosition.get(lightPositionBuffer));
             glUniform3fvARB(viewPositionUniform, viewPosition.get(viewPositionBuffer));
 
-            Model.Material material = model.materials.get(mesh.mesh.mMaterialIndex());
+            Material material = model.materials.get(mesh.mesh.mMaterialIndex());
             nglUniform3fvARB(ambientColorUniform, 1, material.mAmbientColor.address());
             nglUniform3fvARB(diffuseColorUniform, 1, material.mDiffuseColor.address());
             nglUniform3fvARB(specularColorUniform, 1, material.mSpecularColor.address());
@@ -348,12 +384,31 @@ public class ChristianTest {
     }
 
     void loop() {
+        int fpsCounter = 0;
+        int targetFps = 60;
+        int x = 0;
+        int y = 0;
+
+        System.out.println(modelMatrix.toString());
+
         while (!glfwWindowShouldClose(window)) {
+            sync(60);
             glfwPollEvents();
-            glViewport(0, 0, fbWidth, fbHeight);
+
+            int truefbWidth = fbWidth * 2;
+            int truefbHeight = fbHeight * 2;
+
+            glViewport(x, y, truefbWidth, truefbHeight);
+
             update();
             render();
             glfwSwapBuffers(window);
+
+            if(fpsCounter == targetFps) {
+                fpsCounter = 0;
+            } else {
+                fpsCounter++;
+            }
         }
     }
 
@@ -376,111 +431,6 @@ public class ChristianTest {
             glfwTerminate();
         }
     }
-
-    static class Model {
-
-        public AIScene scene;
-        public List<Mesh> meshes;
-        public List<Material> materials;
-
-        public Model(AIScene scene) {
-
-            this.scene = scene;
-
-            int meshCount = scene.mNumMeshes();
-            PointerBuffer meshesBuffer = scene.mMeshes();
-            meshes = new ArrayList<>();
-            for (int i = 0; i < meshCount; ++i) {
-                meshes.add(new Mesh(AIMesh.create(meshesBuffer.get(i))));
-            }
-
-            int materialCount = scene.mNumMaterials();
-            PointerBuffer materialsBuffer = scene.mMaterials();
-            materials = new ArrayList<>();
-            for (int i = 0; i < materialCount; ++i) {
-                materials.add(new Material(AIMaterial.create(materialsBuffer.get(i))));
-            }
-        }
-
-        public void free() {
-            aiReleaseImport(scene);
-            scene = null;
-            meshes = null;
-            materials = null;
-        }
-
-        public static class Mesh {
-
-            public AIMesh mesh;
-            public int vertexArrayBuffer;
-            public int normalArrayBuffer;
-            public int elementArrayBuffer;
-            public int elementCount;
-
-            public Mesh(AIMesh mesh) {
-                this.mesh = mesh;
-
-                vertexArrayBuffer = glGenBuffersARB();
-                glBindBufferARB(GL_ARRAY_BUFFER_ARB, vertexArrayBuffer);
-                AIVector3D.Buffer vertices = mesh.mVertices();
-                nglBufferDataARB(GL_ARRAY_BUFFER_ARB, AIVector3D.SIZEOF * vertices.remaining(),
-                        vertices.address(), GL_STATIC_DRAW_ARB);
-
-                normalArrayBuffer = glGenBuffersARB();
-                glBindBufferARB(GL_ARRAY_BUFFER_ARB, normalArrayBuffer);
-                AIVector3D.Buffer normals = mesh.mNormals();
-                nglBufferDataARB(GL_ARRAY_BUFFER_ARB, AIVector3D.SIZEOF * normals.remaining(),
-                        normals.address(), GL_STATIC_DRAW_ARB);
-
-                int faceCount = mesh.mNumFaces();
-                elementCount = faceCount * 3;
-                IntBuffer elementArrayBufferData = BufferUtils.createIntBuffer(elementCount);
-                AIFace.Buffer facesBuffer = mesh.mFaces();
-                for (int i = 0; i < faceCount; ++i) {
-                    AIFace face = facesBuffer.get(i);
-                    if (face.mNumIndices() != 3) {
-                        throw new IllegalStateException("AIFace.mNumIndices() != 3");
-                    }
-                    elementArrayBufferData.put(face.mIndices());
-                }
-                elementArrayBufferData.flip();
-                elementArrayBuffer = glGenBuffersARB();
-                glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, elementArrayBuffer);
-                glBufferDataARB(GL_ELEMENT_ARRAY_BUFFER_ARB, elementArrayBufferData,
-                        GL_STATIC_DRAW_ARB);
-            }
-        }
-
-        public static class Material {
-
-            public AIMaterial mMaterial;
-            public AIColor4D mAmbientColor;
-            public AIColor4D mDiffuseColor;
-            public AIColor4D mSpecularColor;
-
-            public Material(AIMaterial material) {
-
-                mMaterial = material;
-
-                mAmbientColor = AIColor4D.create();
-                if (aiGetMaterialColor(mMaterial, AI_MATKEY_COLOR_AMBIENT,
-                        aiTextureType_NONE, 0, mAmbientColor) != 0) {
-                    throw new IllegalStateException(aiGetErrorString());
-                }
-                mDiffuseColor = AIColor4D.create();
-                if (aiGetMaterialColor(mMaterial, AI_MATKEY_COLOR_DIFFUSE,
-                        aiTextureType_NONE, 0, mDiffuseColor) != 0) {
-                    throw new IllegalStateException(aiGetErrorString());
-                }
-                mSpecularColor = AIColor4D.create();
-                if (aiGetMaterialColor(mMaterial, AI_MATKEY_COLOR_SPECULAR,
-                        aiTextureType_NONE, 0, mSpecularColor) != 0) {
-                    throw new IllegalStateException(aiGetErrorString());
-                }
-            }
-        }
-    }
-
 
     public static ByteBuffer ioResourceToByteBuffer(String resource, int bufferSize) throws IOException {
         ByteBuffer buffer;
@@ -525,5 +475,55 @@ public class ChristianTest {
         buffer.flip();
         newBuffer.put(buffer);
         return newBuffer;
+    }
+
+    /**
+     * An accurate sync method that adapts automatically
+     * to the system it runs on to provide reliable results.
+     *
+     * @param fps The desired frame rate, in frames per second
+     * @author kappa (On the LWJGL Forums)
+     */
+    private void sync(int fps) {
+        if (fps <= 0) return;
+
+        long sleepTime = 1000000000 / fps; // nanoseconds to sleep this frame
+        // yieldTime + remainder micro & nano seconds if smaller than sleepTime
+        long yieldTime = Math.min(sleepTime, variableYieldTime + sleepTime % (1000*1000));
+        long overSleep = 0; // time the sync goes over by
+
+        try {
+            while (true) {
+                long t = System.nanoTime() - lastTime;
+
+                if (t < sleepTime - yieldTime) {
+                    Thread.sleep(1);
+                }else if (t < sleepTime) {
+                    // burn the last few CPU cycles to ensure accuracy
+                    Thread.yield();
+                }else {
+                    overSleep = t - sleepTime;
+                    break; // exit while loop
+                }
+            }
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }finally{
+            lastTime = System.nanoTime() - Math.min(overSleep, sleepTime);
+
+            // auto tune the time sync should yield
+            if (overSleep > variableYieldTime) {
+                // increase by 200 microseconds (1/5 a ms)
+                variableYieldTime = Math.min(variableYieldTime + 200*1000, sleepTime);
+            }
+            else if (overSleep < variableYieldTime - 200*1000) {
+                // decrease by 2 microseconds
+                variableYieldTime = Math.max(variableYieldTime - 2*1000, 0);
+            }
+        }
+    }
+
+    private static void print(Object obj) {
+        System.out.println(obj);
     }
 }
