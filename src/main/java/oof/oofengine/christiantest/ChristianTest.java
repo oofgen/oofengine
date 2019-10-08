@@ -217,22 +217,22 @@ public class ChristianTest {
                 }
                 switch(key) {
                     case GLFW_KEY_U:
-                        modifyPosition(new Vector4f(0.1f, 0.0f, 0.0f, 0.0f));
+                        modelMatrix.translate(new Vector3f(0.1f, 0.0f, 0.0f));
                         break;
                     case GLFW_KEY_I:
-                        modifyPosition(new Vector4f(-0.1f, 0.0f, 0.0f, 0.0f));
+                        modelMatrix.translate(new Vector3f(-0.1f, 0.0f, 0.0f));
                         break;
                     case GLFW_KEY_J:
-                        modifyPosition(new Vector4f(0.0f, 0.1f, 0.0f, 0.0f));
+                        modelMatrix.translate(new Vector3f(0.0f, 0.1f, 0.0f));
                         break;
                     case GLFW_KEY_K:
-                        modifyPosition(new Vector4f(0.0f, -0.1f, 0.0f, 0.0f));
+                        modelMatrix.translate(new Vector3f(0.0f, -0.1f, 0.0f));
                         break;
                     case GLFW_KEY_N:
-                        modifyPosition(new Vector4f(0.0f, 0.0f, 0.1f, 0.0f));
+                        modelMatrix.translate(new Vector3f(0.0f, 0.0f, 0.1f));
                         break;
                     case GLFW_KEY_M:
-                        modifyPosition(new Vector4f(0.0f, 0.0f, -0.1f, 0.0f));
+                        modelMatrix.translate(new Vector3f(0.0f, 0.0f, -0.1f));
                         break;
                     case GLFW_KEY_SPACE:
                         printDebugInfo();
@@ -240,13 +240,6 @@ public class ChristianTest {
                 }
             }
         });
-    }
-
-    private void modifyPosition(Vector4f axisAdjustmentVector) {
-        Vector4f vector = new Vector4f();
-        vector = modelMatrix.getColumn(3, vector);
-        vector.add(axisAdjustmentVector);
-        modelMatrix.setColumn(3, vector);
     }
 
     private void printDebugInfo() {
