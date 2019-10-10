@@ -16,15 +16,16 @@ import org.lwjgl.opengl.GL;
 import org.lwjgl.opengl.GLCapabilities;
 import org.lwjgl.opengl.GLUtil;
 import org.lwjgl.system.*;
+
+import static java.lang.Math.cos;
+import static java.lang.Math.sin;
 import static org.lwjgl.glfw.GLFW.*;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.Math;
 import java.net.URL;
-import java.nio.ByteBuffer;
-import java.nio.FloatBuffer;
-import java.nio.IntBuffer;
+import java.nio.*;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.SeekableByteChannel;
@@ -55,7 +56,7 @@ public class ChristianTest {
     int height = 768;
     int fbWidth = 1024;
     int fbHeight = 768;
-    float fov = 60;
+    float fov = 119;
     float rotation;
 
     int program;
@@ -80,6 +81,8 @@ public class ChristianTest {
     Matrix4f viewProjectionMatrix = new Matrix4f();
     Vector3f viewPosition = new Vector3f();
     Vector3f lightPosition = new Vector3f(-5f, 5f, 5f);
+    Vector3f centerPosition = new Vector3f(0f, 0f, 0f);
+    Vector3f upPosition = new Vector3f(0f, 1f, 0f);
 
     private FloatBuffer modelMatrixBuffer = BufferUtils.createFloatBuffer(4 * 4);
     private FloatBuffer viewProjectionMatrixBuffer = BufferUtils.createFloatBuffer(4 * 4);
@@ -99,9 +102,22 @@ public class ChristianTest {
 
     private CharSequence modelPath = "oof/bighead.obj";
 
+    // horizontal angle : toward -Z
+    float horizontalAngle = 3.14f;
+    // vertical angle : 0, look at the horizon
+    float verticalAngle = 0.0f;
+    // Initial Field of View
+    float initialFoV = 45.0f;
+
+    float speed = 3.0f; // 3 units / second
+    float mouseSpeed = 0.005f;
+
+    Vector3f right = new Vector3f();
+    Vector3f up = new Vector3f();
+    Vector3f viewDirection = new Vector3f();
+
 
     void init() throws IOException {
-
         if (!glfwInit()) {
             throw new IllegalStateException("Unable to initialize GLFW");
         }
@@ -144,11 +160,16 @@ public class ChristianTest {
         }
         debugProc = GLUtil.setupDebugMessageCallback();
 
-        glClearColor(0f, 0f, 0f, 1f);
+        // black
+        //glClearColor(0f, 0f, 0f, 1f);
+
+        // grey
+        glClearColor(0.498f, 0.498f, 0.498f, 1f);
+
         glEnable(GL_DEPTH_TEST);
 
         /* Create all needed GL resources */
-        loadModel();
+        loadModel(modelPath);
         createShaderProgram();
 
         /* Show window */
@@ -159,83 +180,89 @@ public class ChristianTest {
         glfwSetFramebufferSizeCallback(window, fbCallback = new GLFWFramebufferSizeCallback() {
             @Override
             public void invoke(long window, int width, int height) {
-                if (width > 0 && height > 0 && (ChristianTest.this.fbWidth != width
-                        || ChristianTest.this.fbHeight != height)) {
+                if (width > 0 && height > 0 && (ChristianTest.this.fbWidth != width || ChristianTest.this.fbHeight != height)) {
                     ChristianTest.this.fbWidth = width;
                     ChristianTest.this.fbHeight = height;
                 }
             }
         });
+
         glfwSetWindowSizeCallback(window, wsCallback = new GLFWWindowSizeCallback() {
             @Override
             public void invoke(long window, int width, int height) {
-                if (width > 0 && height > 0 && (ChristianTest.this.width != width
-                        || ChristianTest.this.height != height)) {
+                if (width > 0 && height > 0 && (ChristianTest.this.width != width || ChristianTest.this.height != height)) {
                     ChristianTest.this.width = width;
                     ChristianTest.this.height = height;
-                }
-            }
-        });
-        glfwSetKeyCallback(window, keyCallback = new GLFWKeyCallback() {
-            @Override
-            public void invoke(long window, int key, int scancode, int action, int mods) {
-                if (action != GLFW_RELEASE) {
-                    return;
-                }
-                if (key == GLFW_KEY_ESCAPE) {
-                    glfwSetWindowShouldClose(window, true);
-                }
-            }
-        });
-        glfwSetCursorPosCallback(window, cpCallback = new GLFWCursorPosCallback() {
-            @Override
-            public void invoke(long window, double x, double y) {
-                rotation = ((float) x / width - 0.5f) * 2f * (float) Math.PI;
-            }
-        });
-        glfwSetScrollCallback(window, sCallback = new GLFWScrollCallback() {
-            @Override
-            public void invoke(long window, double xoffset, double yoffset) {
-                if (yoffset < 0) {
-                    fov *= 1.05f;
-                } else {
-                    fov *= 1f / 1.05f;
-                }
-                if (fov < 10.0f) {
-                    fov = 10.0f;
-                } else if (fov > 120.0f) {
-                    fov = 120.0f;
                 }
             }
         });
 
         glfwSetKeyCallback(window, keyCallback = new GLFWKeyCallback() {
             @Override
-            public void invoke(long window, int key, int scancode, int action, int mods) {
-                if (action != GLFW_REPEAT) {
-                    return;
+            public void invoke(long window, int key, int scancode, int action, int mods) { if (action == GLFW_RELEASE) {
+                    if (key == GLFW_KEY_ESCAPE) {
+                        glfwSetWindowShouldClose(window, true);
+                    }
                 }
+            }
+        });
+
+        glfwSetCursorPosCallback(window, cpCallback = new GLFWCursorPosCallback() {
+            @Override
+            public void invoke(long window, double x, double y) { rotation = ((float) x / width - 0.5f) * 2f * (float) Math.PI; }
+        });
+
+        glfwSetKeyCallback(window, keyCallback = new GLFWKeyCallback() {
+            @Override
+            public void invoke(long window, int key, int scancode, int action, int mods) {
+                if (action == GLFW_REPEAT) {
+                    handleKeyHold(window, key, scancode, action, mods, modelMatrix);
+                } else if(action == GLFW_RELEASE) {
+                    handleKeyRelease(window, key, scancode, action, mods);
+                } else if(action == GLFW_PRESS) {
+                    handleKeyHold(window, key, scancode, action, mods, modelMatrix);
+                }
+            }
+
+            private void handleKeyRelease(long window, int key, int scancode, int action, int mods) {
                 switch(key) {
-                    case GLFW_KEY_U:
-                        modelMatrix.translate(new Vector3f(0.1f, 0.0f, 0.0f));
-                        break;
-                    case GLFW_KEY_I:
-                        modelMatrix.translate(new Vector3f(-0.1f, 0.0f, 0.0f));
-                        break;
-                    case GLFW_KEY_J:
-                        modelMatrix.translate(new Vector3f(0.0f, 0.1f, 0.0f));
-                        break;
-                    case GLFW_KEY_K:
-                        modelMatrix.translate(new Vector3f(0.0f, -0.1f, 0.0f));
-                        break;
-                    case GLFW_KEY_N:
-                        modelMatrix.translate(new Vector3f(0.0f, 0.0f, 0.1f));
-                        break;
-                    case GLFW_KEY_M:
-                        modelMatrix.translate(new Vector3f(0.0f, 0.0f, -0.1f));
-                        break;
                     case GLFW_KEY_SPACE:
                         printDebugInfo();
+                        break;
+                }
+            }
+
+            private void handleKeyHold(long window, int key, int scancode, int action, int mods, Matrix4f matrix) {
+                switch(key) {
+                    case GLFW_KEY_U:
+                        matrix.translate(new Vector3f(0.1f, 0.0f, 0.0f));
+                        break;
+                    case GLFW_KEY_I:
+                        matrix.translate(new Vector3f(-0.1f, 0.0f, 0.0f));
+                        break;
+                    case GLFW_KEY_J:
+                        matrix.translate(new Vector3f(0.0f, 0.1f, 0.0f));
+                        break;
+                    case GLFW_KEY_K:
+                        matrix.translate(new Vector3f(0.0f, -0.1f, 0.0f));
+                        break;
+                    case GLFW_KEY_N:
+                        matrix.translate(new Vector3f(0.0f, 0.0f, 0.1f));
+                        break;
+                    case GLFW_KEY_M:
+                        matrix.translate(new Vector3f(0.0f, 0.0f, -0.1f));
+                        break;
+                    case GLFW_KEY_UP:
+                        viewPosition = viewPosition.add(viewDirection.mul(speed));
+                        break;
+                    case GLFW_KEY_DOWN:
+                        viewPosition = viewPosition.sub(viewDirection.mul(speed));
+                        break;
+                    case GLFW_KEY_RIGHT:
+                        viewPosition = viewPosition.add(right.mul(speed));
+                        break;
+                    case GLFW_KEY_LEFT:
+                        viewPosition = viewPosition.sub(right.mul(speed));
                         break;
                 }
             }
@@ -246,9 +273,12 @@ public class ChristianTest {
         print("Debug Info:");
         print("modelpos = ".concat(modelPosition.toString()));
         print("modelMatrix = ".concat("\n").concat(modelMatrix.toString()));
+        print("view position = ".concat("\n").concat(viewPosition.toString()));
+        print("view direction = ".concat("\n").concat(viewDirection.toString()));
+        print("light position = ".concat("\n").concat(lightPosition.toString()));
     }
 
-    private void loadModel() {
+    private void loadModel(CharSequence modelPath) {
         AIFileIO fileIo = AIFileIO.create();
         AIFileOpenProcI fileOpenProc = createDefaultFileOpenProc();
         AIFileCloseProcI fileCloseProc = getDefaultFileCloseProc();
@@ -372,23 +402,39 @@ public class ChristianTest {
     }
 
     public void update() {
-        // zoom
-        projectionMatrix.setPerspective((float) Math.toRadians(fov), (float) width / height, 0.01f,
-                100.0f);
+
+        DoubleBuffer mousePosX = BufferUtils.createDoubleBuffer(1);
+        DoubleBuffer mousePosY = BufferUtils.createDoubleBuffer(1);
+        glfwGetCursorPos(window, mousePosX, mousePosY);
+
+        // Compute new orientation
+        horizontalAngle += mouseSpeed * (float) (width / 2.0 - mousePosX.get());
+        verticalAngle   += mouseSpeed * (float) (width / 2.0 - mousePosY.get());
+
+        viewDirection = viewDirection.set((float) (cos(verticalAngle) * sin(horizontalAngle)), (float) sin(horizontalAngle), (float) (cos(verticalAngle) * cos(horizontalAngle)));
+        right = right.set((float) Math.sin(horizontalAngle - 3.14f/2.0f), 0.0f, (float) Math.cos(horizontalAngle - 3.14f/2.0f));
+        right.cross(viewDirection, up);
+
+        // Projection matrix : 45&deg; Field of View, width:height ratio, display range : 0.1 unit <-> 100 units
+        projectionMatrix.setPerspective((float) Math.toRadians(fov), (float) width / height, 0.01f, 100.0f);
 
         // set variable that represents position of the camera
-        viewPosition.set(10f * (float) Math.cos(rotation), 10f, 10f * (float) Math.sin(rotation));
+        //viewPosition.set(10f * (float) cos(rotation), 10f, 10f * (float) sin(rotation));
+        //viewPosition.set(4, 3, 3);
 
         // actually set position and angle of the camera with previous variable
-        viewMatrix.setLookAt(viewPosition.x, viewPosition.y, viewPosition.z,
-                modelPosition.x, modelPosition.y, modelPosition.z,
-                //0f, 0f, 0f,
-                0f, 1f, 0f
+        viewMatrix.setLookAt(
+                viewPosition,           // camera here
+                centerPosition,         // looks here : same position + direction
+                upPosition              // 0f, 1f, 0f - corresponds to right-side-up; 0f, -1f, 0f for up-side-down
         );
 
         // multiply the projection by the view and store it in the viewProjection.
         // I think this gives you what is shown on screen.
         projectionMatrix.mul(viewMatrix, viewProjectionMatrix);
+
+        // reset cursor position
+        glfwSetCursorPos(window, width/2.0, height/2.0);
     }
 
     void render() {
@@ -442,6 +488,7 @@ public class ChristianTest {
             update();
             render();
             glfwSwapBuffers(window);
+            //glfwSetCursorPos(window, width / 2, height / 2);
 
             if(fpsCounter == targetFps) {
                 fpsCounter = 0;

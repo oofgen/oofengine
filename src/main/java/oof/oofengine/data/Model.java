@@ -22,7 +22,7 @@ public class Model {
     public List<Mesh> meshes;
     public List<Material> materials;
 
-    public Vector3f postion;
+    public Vector3f position;
 
     public Model(AIScene scene) {
         this.scene = scene;
