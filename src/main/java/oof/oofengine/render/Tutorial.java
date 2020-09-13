@@ -33,11 +33,11 @@ public class Tutorial implements Runnable {
     private static final Logger logger = LoggerFactory.getLogger(Tutorial.class);
 
     private long window;
-    private int width = 640 * 2;
-    private int height = 480 * 2;
+    private float width = 1024.0f;
+    private float height = 768.0f;
     private int shaderProgramId;
     private int matrixId;
-    private float fov = 45.0f;
+    private double fov = 45.0;
     private float aspectRatio = width / height;
 
 
@@ -46,16 +46,22 @@ public class Tutorial implements Runnable {
     Matrix4f model = new Matrix4f();
     Matrix4f modelViewProjection = new Matrix4f();
 
-    final Matrix3f vertexBufferData = ObjectMatrixSamples.triangle;
+    final float[] vertexBufferData = ObjectMatrixSamples.cube;
     IntBuffer vertexArrayId = BufferUtils.createIntBuffer(1);
     IntBuffer vertexBuffer = BufferUtils.createIntBuffer(1);
     int vertexId = -1;
-    FloatBuffer vertexBufferDataBuffer = BufferUtils.createFloatBuffer(3 * 3);
+
+    final float[] colorBufferData = ObjectMatrixSamples.cube_colors;
+    IntBuffer colorArrayId = BufferUtils.createIntBuffer(1);
+    IntBuffer colorBuffer = BufferUtils.createIntBuffer(1);
+    int colorId = -1;
+
 
     @Override
     public void run() {
         try {
             init();
+            render();
             loop();
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -70,7 +76,7 @@ public class Tutorial implements Runnable {
         glfwDefaultWindowHints();
         setHints();
 
-        window = glfwCreateWindow(width, height, "ChristianTest2", NULL, NULL);
+        window = glfwCreateWindow((int) width, (int) height, "ChristianTest2", NULL, NULL);
         if( window == NULL) {
             logger.error("Failed to open GLFW window.");
             glfwTerminate();
@@ -80,6 +86,13 @@ public class Tutorial implements Runnable {
         glfwMakeContextCurrent(window);
         GL.createCapabilities();
 
+        // Enable depth test
+        glEnable(GL_DEPTH_TEST);
+        // Accept fragment if it closer to the camera than the former one
+        glDepthFunc(GL_LESS);
+    }
+
+    private void render() throws Exception {
         // Dark blue background
         glClearColor(0.33f, 0.33f, 0.33f, 0.0f);
 
@@ -89,7 +102,12 @@ public class Tutorial implements Runnable {
         glGenBuffersARB(vertexBuffer);
         vertexId = vertexBuffer.get();
         glBindBufferARB(GL_ARRAY_BUFFER_ARB, vertexId);
-        glBufferDataARB(GL_ARRAY_BUFFER_ARB, vertexBufferData.get(vertexBufferDataBuffer), GL_STATIC_DRAW_ARB);
+        glBufferDataARB(GL_ARRAY_BUFFER_ARB, vertexBufferData, GL_STATIC_DRAW_ARB);
+
+        glGenBuffersARB(colorBuffer);
+        colorId = colorBuffer.get();
+        glBindBufferARB(GL_ARRAY_BUFFER_ARB, colorId);
+        glBufferDataARB(GL_ARRAY_BUFFER_ARB, colorBufferData, GL_STATIC_DRAW_ARB);
 
         shaderProgramId = ShaderManager.loadShaderProgram(
                 "shader/tutorial_3_simpletransform.vsh",
@@ -100,7 +118,7 @@ public class Tutorial implements Runnable {
         matrixId = glGetUniformLocationARB(shaderProgramId, "mvp");
 
         // Projection matrix : 45° Field of View, 4:3 ratio, display range : 0.1 unit <-> 100 units
-        projection = new Matrix4f().perspective(fov, aspectRatio, 0.1f, 100.0f);
+        projection = new Matrix4f().perspective((float) Math.toRadians(fov), aspectRatio, 0.1f, 100.0f);
 
         // View matrix
         view = new Matrix4f().lookAt(
@@ -141,12 +159,24 @@ public class Tutorial implements Runnable {
 
             glUniformMatrix4fv(matrixId, false, modelViewProjection.get(BufferUtils.createFloatBuffer(4 * 4)));
 
+            // first attribute buffer : vertices
             glEnableVertexAttribArrayARB(0);
             glBindBufferARB(GL_ARRAY_BUFFER_ARB, vertexId);
             glVertexAttribPointerARB(0, 3, GL_FLOAT, false,0, 0);
 
+            glEnableVertexAttribArrayARB(1);
+            glBindBufferARB(GL_ARRAY_BUFFER_ARB, colorId);
+            glVertexAttribPointerARB(
+                    1,                                // attribute. No particular reason for 1, but must match the layout in the shader.
+                    3,                                // size
+                    GL_FLOAT,                         // type
+                    false,                         // normalized?
+                    0,                                // stride
+                    0                          // array buffer offset
+);
+
             // Draw
-            glDrawArrays(GL_TRIANGLES, 0, 3);
+            glDrawArrays(GL_TRIANGLES, 0, vertexBufferData.length);
 
             glDisableVertexAttribArrayARB(0);
 
