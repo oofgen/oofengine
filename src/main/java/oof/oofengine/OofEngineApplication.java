@@ -1,18 +1,20 @@
 package oof.oofengine;
 
-import oof.oofengine.christiantest.ChristianTest;
+import oof.oofengine.render.Tutorial;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.awt.*;
-import java.io.IOException;
 
 public class OofEngineApplication {
+    private static final Logger logger = LoggerFactory.getLogger(OofEngineApplication.class);
+
     public static void main(String[] args) {
 
-        ChristianTest christianTest = new ChristianTest();
+        Runnable engine = new Tutorial();
         try {
-            christianTest.run();
+            engine.run();
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error(e.toString());
         }
     }
 
