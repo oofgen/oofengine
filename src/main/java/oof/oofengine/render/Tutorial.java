@@ -93,7 +93,7 @@ public class Tutorial implements Runnable {
     }
 
     private void render() throws Exception {
-        // Dark blue background
+        // 50% grey background
         glClearColor(0.33f, 0.33f, 0.33f, 0.0f);
 
         glGenVertexArrays(vertexArrayId);
