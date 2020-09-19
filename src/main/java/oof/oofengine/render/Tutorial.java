@@ -1,7 +1,9 @@
 package oof.oofengine.render;
 
+import com.sun.istack.internal.NotNull;
 import oof.oofengine.data.ObjectMatrixSamples;
 import oof.oofengine.render.shader.ShaderManager;
+import oof.oofengine.util.TextureUtils;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
@@ -12,8 +14,10 @@ import org.lwjgl.opengl.GL33;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
+import java.nio.file.Paths;
 
 import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.ARBShaderObjects.glGetUniformLocationARB;
@@ -22,7 +26,13 @@ import static org.lwjgl.opengl.ARBVertexShader.glDisableVertexAttribArrayARB;
 import static org.lwjgl.opengl.ARBVertexShader.glEnableVertexAttribArrayARB;
 import static org.lwjgl.opengl.ARBVertexShader.glVertexAttribPointerARB;
 import static org.lwjgl.opengl.GL11.*;
+import static org.lwjgl.opengl.GL12C.GL_BGR;
+import static org.lwjgl.opengl.GL13.GL_TEXTURE0;
+import static org.lwjgl.opengl.GL13C.glActiveTexture;
+import static org.lwjgl.opengl.GL15.glDeleteBuffers;
+import static org.lwjgl.opengl.GL20C.glUniform1i;
 import static org.lwjgl.opengl.GL20C.glUniformMatrix4fv;
+import static org.lwjgl.opengl.GL30.glDeleteVertexArrays;
 import static org.lwjgl.opengl.GL30C.glBindVertexArray;
 import static org.lwjgl.opengl.GL30C.glGenVertexArrays;
 import static org.lwjgl.system.MemoryUtil.NULL;
@@ -49,12 +59,19 @@ public class Tutorial implements Runnable {
     final float[] vertexBufferData = ObjectMatrixSamples.cube;
     IntBuffer vertexArrayId = BufferUtils.createIntBuffer(1);
     IntBuffer vertexBuffer = BufferUtils.createIntBuffer(1);
-    int vertexId = -1;
+    int vertexId = -200;
 
     final float[] colorBufferData = ObjectMatrixSamples.cube_colors;
     IntBuffer colorArrayId = BufferUtils.createIntBuffer(1);
     IntBuffer colorBuffer = BufferUtils.createIntBuffer(1);
-    int colorId = -1;
+    int colorId = -200;
+
+    int textureId = -200;
+    final IntBuffer textureBuffer = BufferUtils.createIntBuffer(1);
+
+    IntBuffer uvBuffer = BufferUtils.createIntBuffer(1);
+    int uvId = -1;
+    private int texture;
 
 
     @Override
@@ -93,9 +110,11 @@ public class Tutorial implements Runnable {
     }
 
     private void render() throws Exception {
+        shaderProgramId = ShaderManager.loadShaderProgram(getVertexShader(), getFragmentShader());
         // 50% grey background
         glClearColor(0.33f, 0.33f, 0.33f, 0.0f);
 
+        // vertexes
         glGenVertexArrays(vertexArrayId);
         glBindVertexArray(vertexArrayId.get());
 
@@ -104,18 +123,29 @@ public class Tutorial implements Runnable {
         glBindBufferARB(GL_ARRAY_BUFFER_ARB, vertexId);
         glBufferDataARB(GL_ARRAY_BUFFER_ARB, vertexBufferData, GL_STATIC_DRAW_ARB);
 
-        glGenBuffersARB(colorBuffer);
-        colorId = colorBuffer.get();
-        glBindBufferARB(GL_ARRAY_BUFFER_ARB, colorId);
-        glBufferDataARB(GL_ARRAY_BUFFER_ARB, colorBufferData, GL_STATIC_DRAW_ARB);
+//        // colors
+//        glGenBuffersARB(colorBuffer);
+//        colorId = colorBuffer.get();
+//        glBindBufferARB(GL_ARRAY_BUFFER_ARB, colorId);
+//        glBufferDataARB(GL_ARRAY_BUFFER_ARB, colorBufferData, GL_STATIC_DRAW_ARB);
 
-        shaderProgramId = ShaderManager.loadShaderProgram(
-                "shader/tutorial_3_simpletransform.vsh",
-                "shader/tutorial_3_singlecolor.fsh"
-        );
+        // uvs
+        glGenBuffersARB(uvBuffer);
+        uvId = uvBuffer.get();
+        glBindBufferARB(GL_ARRAY_BUFFER_ARB, uvId);
+        glBufferDataARB(GL_ARRAY_BUFFER_ARB, ObjectMatrixSamples.uvs, GL_STATIC_DRAW_ARB);
+
+
+        // texture
+        texture = TextureUtils.loadTextureAsResource(Paths.get("texture/uvtemplate.DDS"));
+        // Get a handle for our "myTextureSampler" uniform
+        textureId = glGetUniformLocationARB(shaderProgramId, "myTextureSampler");
+        if(textureId == -1) {
+            throw new RuntimeException(String.format("\nglGetUniformLocationARB failed with params:\nshaderProgramId = %s\nname = \"myTextureSampler\"", shaderProgramId));
+        }
 
         // Get a handle for our "MVP" uniform
-        matrixId = glGetUniformLocationARB(shaderProgramId, "mvp");
+        matrixId = glGetUniformLocationARB(shaderProgramId, "MVP");
 
         // Projection matrix : 45° Field of View, 4:3 ratio, display range : 0.1 unit <-> 100 units
         projection = new Matrix4f().perspective((float) Math.toRadians(fov), aspectRatio, 0.1f, 100.0f);
@@ -136,6 +166,18 @@ public class Tutorial implements Runnable {
         glfwShowWindow(window);
     }
 
+    @NotNull
+    private String getFragmentShader() {
+        return "shader/tutorial5/textureShader.fsh";
+        //return "shader/tutorial_3_singlecolor.fsh";
+    }
+
+    @NotNull
+    private String getVertexShader() {
+        return "shader/tutorial5/textureShader.vsh";
+        //return "shader/tutorial_3_simpletransform.vsh";
+    }
+
     private void setHints() {
         glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
         glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
@@ -151,6 +193,15 @@ public class Tutorial implements Runnable {
         glfwSetInputMode(window, GLFW_STICKY_KEYS, GL_TRUE);
 
         do {
+            int errorCode = 0;
+            do {
+                errorCode = glGetError();
+                if(errorCode != GL_NO_ERROR) {
+                    logger.error(String.format("GL reported error code %s", errorCode));
+                }
+            } while(errorCode != GL_NO_ERROR);
+
+
             // Clear the screen. It's not mentioned before Tutorial 02, but it can cause flickering, so it's there nonetheless.
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -159,26 +210,47 @@ public class Tutorial implements Runnable {
 
             glUniformMatrix4fv(matrixId, false, modelViewProjection.get(BufferUtils.createFloatBuffer(4 * 4)));
 
+            // Bind our texture in Texture Unit 0
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, texture);
+            // Set our "myTextureSampler" sampler to use Texture Unit 0
+            glUniform1i(textureId, 0);
+
             // first attribute buffer : vertices
             glEnableVertexAttribArrayARB(0);
             glBindBufferARB(GL_ARRAY_BUFFER_ARB, vertexId);
             glVertexAttribPointerARB(0, 3, GL_FLOAT, false,0, 0);
+//            // colors
+//            glEnableVertexAttribArrayARB(1);
+//            glBindBufferARB(GL_ARRAY_BUFFER_ARB, colorId);
+//            glVertexAttribPointerARB(
+//                    1,                                // attribute. No particular reason for 1, but must match the layout in the shader.
+//                    3,                                // size
+//                    GL_FLOAT,                         // type
+//                    false,                         // normalized?
+//                    0,                                // stride
+//                    0                          // array buffer offset
+//            );
 
+
+            // 2nd attribute buffer : UVs
             glEnableVertexAttribArrayARB(1);
-            glBindBufferARB(GL_ARRAY_BUFFER_ARB, colorId);
+            glBindBufferARB(GL_ARRAY_BUFFER_ARB, uvId);
             glVertexAttribPointerARB(
                     1,                                // attribute. No particular reason for 1, but must match the layout in the shader.
-                    3,                                // size
+                    2,                                // size : U+V => 2
                     GL_FLOAT,                         // type
                     false,                         // normalized?
                     0,                                // stride
                     0                          // array buffer offset
-);
+		    );
+
 
             // Draw
             glDrawArrays(GL_TRIANGLES, 0, vertexBufferData.length);
 
             glDisableVertexAttribArrayARB(0);
+            glDisableVertexAttribArrayARB(1);
 
             // Swap buffers
             glfwSwapBuffers(window);
@@ -186,6 +258,17 @@ public class Tutorial implements Runnable {
 
         } // Check if the ESC key was pressed or the window was closed
         while( glfwGetKey(window, GLFW_KEY_ESCAPE ) != GLFW_PRESS && !glfwWindowShouldClose(window) );
+
+
+        // Cleanup VBO and shader
+        glDeleteBuffers(vertexId);
+        glDeleteBuffers(uvId);
+        GL33.glDeleteProgram(shaderProgramId);
+        glDeleteTextures(textureId);
+        glDeleteVertexArrays(vertexArrayId);
+
+        // Close OpenGL window and terminate GLFW
+        glfwTerminate();
     }
 
 }
