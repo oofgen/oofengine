@@ -1,21 +1,19 @@
 package oof.oofengine.render;
 
 import com.sun.istack.internal.NotNull;
+import oof.oofengine.control.Camera;
+import oof.oofengine.data.CameraSettings;
 import oof.oofengine.data.ObjectMatrixSamples;
 import oof.oofengine.render.shader.ShaderManager;
 import oof.oofengine.util.TextureUtils;
-import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.lwjgl.BufferUtils;
-import org.lwjgl.glfw.GLFW;
 import org.lwjgl.opengl.GL;
 import org.lwjgl.opengl.GL33;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.nio.ByteBuffer;
-import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 import java.nio.file.Paths;
 
@@ -26,7 +24,6 @@ import static org.lwjgl.opengl.ARBVertexShader.glDisableVertexAttribArrayARB;
 import static org.lwjgl.opengl.ARBVertexShader.glEnableVertexAttribArrayARB;
 import static org.lwjgl.opengl.ARBVertexShader.glVertexAttribPointerARB;
 import static org.lwjgl.opengl.GL11.*;
-import static org.lwjgl.opengl.GL12C.GL_BGR;
 import static org.lwjgl.opengl.GL13.GL_TEXTURE0;
 import static org.lwjgl.opengl.GL13C.glActiveTexture;
 import static org.lwjgl.opengl.GL15.glDeleteBuffers;
@@ -47,8 +44,8 @@ public class Tutorial implements Runnable {
     private float height = 768.0f;
     private int shaderProgramId;
     private int matrixId;
-    private double fov = 45.0;
-    private float aspectRatio = width / height;
+    private final double fov = 45.0;
+    private final float aspectRatio = width / height;
 
 
     Matrix4f projection = new Matrix4f();
@@ -72,6 +69,24 @@ public class Tutorial implements Runnable {
     IntBuffer uvBuffer = BufferUtils.createIntBuffer(1);
     int uvId = -1;
     private int texture;
+    private Camera camera;
+
+    private Camera getCamera(long windowId) {
+        CameraSettings settings = new CameraSettings();
+        settings.setFov(fov);
+        settings.setAspectRatio(aspectRatio);
+        settings.setHeight(height);
+        settings.setWidth(width);
+
+        settings.setInitialDirection(new Vector3f(0, 0, 0));
+        settings.setInitialPosition(new Vector3f(4, 3, 3));
+        settings.setInitialRotation(new Vector3f(0, 1, 0));
+
+        settings.setCameraSpeed(3.0f);
+        settings.setMouseSpeed(1.0f);
+
+        return new Camera(settings, windowId);
+    }
 
 
     @Override
@@ -100,13 +115,27 @@ public class Tutorial implements Runnable {
             throw new RuntimeException();
         }
 
+        camera = getCamera(window);
+
         glfwMakeContextCurrent(window);
         GL.createCapabilities();
 
+        // Ensure we can capture the escape key being pressed below
+        glfwSetInputMode(window, GLFW_STICKY_KEYS, GL_TRUE);
+        // Hide the mouse and enable unlimited mouvement
+        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+
+        // Set the mouse at the center of the screen
+        glfwPollEvents();
+        glfwSetCursorPos(window, width/2, height/2);
+
         // Enable depth test
         glEnable(GL_DEPTH_TEST);
-        // Accept fragment if it closer to the camera than the former one
+        // Accept fragment if it closer to the Camera than the former one
         glDepthFunc(GL_LESS);
+
+        // Cull triangles which normal is not towards the camera
+        glEnable(GL_CULL_FACE);
     }
 
     private void render() throws Exception {
@@ -147,21 +176,6 @@ public class Tutorial implements Runnable {
         // Get a handle for our "MVP" uniform
         matrixId = glGetUniformLocationARB(shaderProgramId, "MVP");
 
-        // Projection matrix : 45° Field of View, 4:3 ratio, display range : 0.1 unit <-> 100 units
-        projection = new Matrix4f().perspective((float) Math.toRadians(fov), aspectRatio, 0.1f, 100.0f);
-
-        // View matrix
-        view = new Matrix4f().lookAt(
-                new Vector3f(4,3,3),    // POSTION: view (camera) is positioned at (4, 3, 3)xyz in world
-                new Vector3f(0, 0,0),   // DIRECTION: view is angled at (0, 0, 0)xyz in world
-                new Vector3f(0, 1, 0)   // ROTATION: view is right-side up (y=-1) for upside down
-        );
-
-        // Model matrix : an identity matrix (model will be at the origin)
-        model = new Matrix4f().identity();
-
-        modelViewProjection = projection.mul(view).mul(model);
-
         // finally, show window
         glfwShowWindow(window);
     }
@@ -189,9 +203,6 @@ public class Tutorial implements Runnable {
     }
 
     private void loop() {
-        // Ensure we can capture the escape key being pressed below
-        glfwSetInputMode(window, GLFW_STICKY_KEYS, GL_TRUE);
-
         do {
             int errorCode = 0;
             do {
@@ -207,6 +218,18 @@ public class Tutorial implements Runnable {
 
             // Use our shader
             GL33.glUseProgram(shaderProgramId);
+
+            //------------------------------------------------------------------------------------------------------------------
+            camera.computeMatricesFromInputs();
+
+            projection = camera.getProjection();
+            view = camera.getView();
+
+            // Model matrix : an identity matrix (model will be at the origin)
+            model = new Matrix4f().identity();
+
+            modelViewProjection = projection.mul(view).mul(model);
+            //------------------------------------------------------------------------------------------------------------------
 
             glUniformMatrix4fv(matrixId, false, modelViewProjection.get(BufferUtils.createFloatBuffer(4 * 4)));
 
