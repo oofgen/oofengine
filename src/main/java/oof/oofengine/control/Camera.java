@@ -90,11 +90,13 @@ public class Camera {
         if (glfwGetKey( windowId, GLFW_KEY_A ) == GLFW_PRESS){
             position = position.sub(right.mul(deltaTime).mul(settings.getMouseSpeed()));
         }
+        direction = direction.add(position); // and looks here : at the same position, plus "direction"
 
         projection = new Matrix4f().perspective((float) Math.toRadians(initialFoV), settings.getAspectRatio(), 0.1f, 100.0f);
+        System.out.printf("position: %s\r", position);
         view = new Matrix4f().lookAt(
                 position,           // Camera is here
-                direction.add(position), // and looks here : at the same position, plus "direction"
+                direction,  // and looks here : at the same position, plus "direction"
                 up                  // Head is up (set to 0,-1,0 to look upside-down)
         );
     }
