@@ -137,7 +137,7 @@ public class Tutorial implements Runnable {
 
 
         // texture
-        texture = TextureUtils.loadTextureAsResource(Paths.get("texture/uvtemplate.DDS"));
+        texture = TextureUtils.loadTextureAsResource(Paths.get("texture/uvtemplate_flipped.DDS"));
         // Get a handle for our "myTextureSampler" uniform
         textureId = glGetUniformLocationARB(shaderProgramId, "myTextureSampler");
         if(textureId == -1) {

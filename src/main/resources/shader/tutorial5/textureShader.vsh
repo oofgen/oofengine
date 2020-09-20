@@ -13,9 +13,9 @@ uniform mat4 MVP;
 void main(){
 
     // Output position of the vertex, in clip space : MVP * position
-    gl_Position =  MVP * vec4(vertexPosition_modelspace,1);
+    gl_Position = MVP * vec4(vertexPosition_modelspace, 1);
 
     // UV of the vertex. No special space for this one.
-    UV = vertexUV * (1.0, -1.0); // flip the v. I can't imagine this situation is ideal, since you have to assume that all incoming uv's are incorrectly formatted.
+    UV = vertexUV;
 }
 
