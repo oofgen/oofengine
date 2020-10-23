@@ -1,12 +1,15 @@
 package oof.oofengine.model;
 
 import oof.oofengine.util.TextureUtils;
+import org.joml.Matrix4f;
 import org.lwjgl.BufferUtils;
 
+import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 import java.nio.file.Paths;
 
 import static org.lwjgl.opengl.ARBShaderObjects.glGetUniformLocationARB;
+import static org.lwjgl.opengl.ARBShaderObjects.glUniformMatrix4fvARB;
 import static org.lwjgl.opengl.ARBVertexArrayObject.glDeleteVertexArrays;
 import static org.lwjgl.opengl.ARBVertexBufferObject.*;
 import static org.lwjgl.opengl.ARBVertexBufferObject.GL_ARRAY_BUFFER_ARB;
@@ -34,13 +37,21 @@ public class SimpleModel {
     private final IntBuffer uvBuffer = BufferUtils.createIntBuffer(1);
     private int uvId = -1;
     private int texture;
+    private boolean init;
+    private FloatBuffer modelMatrixBuffer = BufferUtils.createFloatBuffer(4 * 4);
+    private Matrix4f modelViewProjection = new Matrix4f();
+    // Model matrix : an identity matrix (model will be at the origin to start)
+    private Matrix4f model = new Matrix4f().identity();
 
     public SimpleModel(float[] vertexBufferData, String textureResourcePath) {
         this.vertexBufferData = vertexBufferData;
         this.textureResourcePath = textureResourcePath;
     }
 
-    public void init(int shaderProgramId) {
+    public void init(int shader) {
+        if(checkInit()) {
+            return;
+        }
         // vertexes
         glGenVertexArrays(vertexArrayId);
         glBindVertexArray(vertexArrayId.get());
@@ -59,13 +70,28 @@ public class SimpleModel {
         // texture
         texture = TextureUtils.loadTextureAsResource(Paths.get(textureResourcePath));
         // Get a handle for our "myTextureSampler" uniform
-        textureId = glGetUniformLocationARB(shaderProgramId, "textureSampler");
+        textureId = glGetUniformLocationARB(shader, "textureSampler");
         if(textureId == -1) {
-            throw new RuntimeException(String.format("\nglGetUniformLocationARB failed with params:\nshaderProgramId = %s\nname = \"textureSampler\"", shaderProgramId));
+            throw new RuntimeException(String.format("\nglGetUniformLocationARB failed with params:\nshaderProgramId = %s\nname = \"textureSampler\"", shader));
         }
     }
 
-    public void draw() {
+    private boolean checkInit() {
+        if(init) {
+            return true;
+        }
+        init = true;
+        return false;
+    }
+
+    public void draw(int matrixUniformHandle, Matrix4f viewProjection) {
+        if(!init) {
+            throw new RuntimeException("Trying to draw uninitialized SimpleModel!");
+        }
+        modelViewProjection = viewProjection.mul(model, modelViewProjection);
+
+        glUniformMatrix4fvARB(matrixUniformHandle, false, modelViewProjection.get(BufferUtils.createFloatBuffer(4 * 4)));
+
         // Bind our texture in Texture Unit 0
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, texture);

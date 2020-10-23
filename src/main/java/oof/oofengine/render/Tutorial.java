@@ -8,7 +8,6 @@ import oof.oofengine.control.impl.FreeCamera;
 import oof.oofengine.model.CameraSettings;
 import oof.oofengine.model.ObjectMatrixSamples;
 import oof.oofengine.render.shader.ShaderManager;
-import oof.oofengine.util.TextureUtils;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.lwjgl.BufferUtils;
@@ -17,24 +16,15 @@ import org.lwjgl.opengl.GL33;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.nio.IntBuffer;
-import java.nio.file.Paths;
-
 import static org.lwjgl.assimp.Assimp.*;
 import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.ARBShaderObjects.glGetUniformLocationARB;
-import static org.lwjgl.opengl.ARBVertexBufferObject.*;
-import static org.lwjgl.opengl.ARBVertexShader.glDisableVertexAttribArrayARB;
-import static org.lwjgl.opengl.ARBVertexShader.glEnableVertexAttribArrayARB;
+import static org.lwjgl.opengl.ARBShaderObjects.glUniformMatrix4fvARB;
 import static org.lwjgl.opengl.ARBVertexShader.glVertexAttribPointerARB;
 import static org.lwjgl.opengl.GL11.*;
-import static org.lwjgl.opengl.GL13.GL_TEXTURE0;
-import static org.lwjgl.opengl.GL13C.glActiveTexture;
 import static org.lwjgl.opengl.GL15.glDeleteBuffers;
-import static org.lwjgl.opengl.GL20C.glUniform1i;
 import static org.lwjgl.opengl.GL20C.glUniformMatrix4fv;
 import static org.lwjgl.opengl.GL30.glDeleteVertexArrays;
-import static org.lwjgl.opengl.GL30C.glBindVertexArray;
 import static org.lwjgl.opengl.GL30C.glGenVertexArrays;
 import static org.lwjgl.system.MemoryUtil.NULL;
 
@@ -46,8 +36,8 @@ public class Tutorial implements Runnable {
     private long window;
     private float width = 1024.0f / 2;
     private float height = 768.0f / 2;
-    private int shaderProgramId;
-    private int matrixId;
+    private int shader;
+    private int matrixUniformHandle;
     private final double fov = 45.0;
     private final float aspectRatio = width / height;
 
@@ -56,6 +46,7 @@ public class Tutorial implements Runnable {
     Matrix4f view = new Matrix4f();
     Matrix4f model = new Matrix4f();
     Matrix4f modelViewProjection = new Matrix4f();
+    Matrix4f viewProjection = new Matrix4f();
 
     private Camera camera;
     private final SimpleModel cube = new SimpleModel(ObjectMatrixSamples.cube, "texture/uvtemplate_flipped.DDS");
@@ -134,14 +125,14 @@ public class Tutorial implements Runnable {
     }
 
     private void render() throws Exception {
-        shaderProgramId = ShaderManager.loadShaderProgram(getVertexShader(), getFragmentShader());
+        shader = ShaderManager.loadShaderProgram(getVertexShader(), getFragmentShader());
         // 50% grey background
         glClearColor(0.33f, 0.33f, 0.33f, 0.0f);
 
         // Get a handle for our "MVP" uniform
-        matrixId = glGetUniformLocationARB(shaderProgramId, "MVP");
+        matrixUniformHandle = glGetUniformLocationARB(shader, "MVP");
 
-        cube.init(shaderProgramId);
+        cube.init(shader);
 
         // finally, show window
         glfwShowWindow(window);
@@ -171,37 +162,24 @@ public class Tutorial implements Runnable {
 
     private void loop() {
         do {
-            int errorCode = 0;
-            do {
-                errorCode = glGetError();
-                if(errorCode != GL_NO_ERROR) {
-                    logger.error(String.format("GL reported error code %s", errorCode));
-                }
-            } while(errorCode != GL_NO_ERROR);
-
-
+            handleGLErrors();
             // Clear the screen. It's not mentioned before Tutorial 02, but it can cause flickering, so it's there nonetheless.
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
             // Use our shader
-            GL33.glUseProgram(shaderProgramId);
+            GL33.glUseProgram(shader);
 
-            //------------------------------------------------------------------------------------------------------------------
+            //- view -----------------------------------------------------------------------------------------------------------
             camera.computeMatricesFromInputs();
             projection = camera.getProjection();
             view = camera.getView();
-
-            // Model matrix : an identity matrix (model will be at the origin)
-            model = new Matrix4f().identity();
-
-            modelViewProjection = projection.mul(view).mul(model);
+            viewProjection = projection.mul(view);
             //------------------------------------------------------------------------------------------------------------------
 
-            glUniformMatrix4fv(matrixId, false, modelViewProjection.get(BufferUtils.createFloatBuffer(4 * 4)));
+            //---- draw --------------------------------------------------------------------------------------------------------
+            cube.draw(matrixUniformHandle, viewProjection);
 
-            //---- draw calls -----
-            cube.draw();
-
+            //------------------------------------------------------------------------------------------------------------------
 
             // Swap buffers
             glfwSwapBuffers(window);
@@ -210,13 +188,22 @@ public class Tutorial implements Runnable {
         } // Check if the ESC key was pressed or the window was closed
         while( glfwGetKey(window, GLFW_KEY_ESCAPE ) != GLFW_PRESS && !glfwWindowShouldClose(window) );
 
-
         // Cleanup VBO and shader
-        GL33.glDeleteProgram(shaderProgramId);
+        GL33.glDeleteProgram(shader);
         cube.free();
 
         // Close OpenGL window and terminate GLFW
         glfwTerminate();
+    }
+
+    private void handleGLErrors() {
+        int errorCode = 0;
+        do {
+            errorCode = glGetError();
+            if(errorCode != GL_NO_ERROR) {
+                logger.error(String.format("GL reported error code %s", errorCode));
+            }
+        } while(errorCode != GL_NO_ERROR);
     }
 
 }
