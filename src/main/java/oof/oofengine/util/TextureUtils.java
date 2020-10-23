@@ -1,7 +1,7 @@
 package oof.oofengine.util;
 
 import oof.oofengine.OofEngineApplication;
-import oof.oofengine.data.Texture;
+import oof.oofengine.model.Texture;
 import org.lwjgl.opengl.GL13;
 
 import java.net.URISyntaxException;

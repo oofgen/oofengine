@@ -1,19 +1,15 @@
-package oof.oofengine.data;
+package oof.oofengine.model;
 
 import org.apache.commons.lang3.builder.StandardToStringStyle;
 import org.joml.Vector3f;
-import org.joml.Vector4f;
-import org.lwjgl.BufferUtils;
 import org.lwjgl.PointerBuffer;
 import org.lwjgl.assimp.*;
 
-import java.nio.IntBuffer;
 import java.util.ArrayList;
 import java.util.List;
 
 import static org.lwjgl.assimp.Assimp.*;
-import static org.lwjgl.opengl.ARBVertexBufferObject.*;
-import static org.lwjgl.opengl.ARBVertexBufferObject.GL_STATIC_DRAW_ARB;
+
 import org.apache.commons.lang3.builder.ToStringBuilder;
 
 public class Model {

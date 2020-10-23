@@ -1,9 +1,12 @@
 package oof.oofengine.render;
 
-import org.jetbrains.annotations.NotNull;
 import oof.oofengine.control.Camera;
-import oof.oofengine.data.CameraSettings;
-import oof.oofengine.data.ObjectMatrixSamples;
+import oof.oofengine.data.LoaderUtils;
+import oof.oofengine.model.SimpleModel;
+import org.jetbrains.annotations.NotNull;
+import oof.oofengine.control.impl.FreeCamera;
+import oof.oofengine.model.CameraSettings;
+import oof.oofengine.model.ObjectMatrixSamples;
 import oof.oofengine.render.shader.ShaderManager;
 import oof.oofengine.util.TextureUtils;
 import org.joml.Matrix4f;
@@ -17,6 +20,7 @@ import org.slf4j.LoggerFactory;
 import java.nio.IntBuffer;
 import java.nio.file.Paths;
 
+import static org.lwjgl.assimp.Assimp.*;
 import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.ARBShaderObjects.glGetUniformLocationARB;
 import static org.lwjgl.opengl.ARBVertexBufferObject.*;
@@ -53,23 +57,8 @@ public class Tutorial implements Runnable {
     Matrix4f model = new Matrix4f();
     Matrix4f modelViewProjection = new Matrix4f();
 
-    final float[] vertexBufferData = ObjectMatrixSamples.cube;
-    IntBuffer vertexArrayId = BufferUtils.createIntBuffer(1);
-    IntBuffer vertexBuffer = BufferUtils.createIntBuffer(1);
-    int vertexId = -200;
-
-    final float[] colorBufferData = ObjectMatrixSamples.cube_colors;
-    IntBuffer colorArrayId = BufferUtils.createIntBuffer(1);
-    IntBuffer colorBuffer = BufferUtils.createIntBuffer(1);
-    int colorId = -200;
-
-    int textureId = -200;
-    final IntBuffer textureBuffer = BufferUtils.createIntBuffer(1);
-
-    IntBuffer uvBuffer = BufferUtils.createIntBuffer(1);
-    int uvId = -1;
-    private int texture;
     private Camera camera;
+    private final SimpleModel cube = new SimpleModel(ObjectMatrixSamples.cube, "texture/uvtemplate_flipped.DDS");
 
     private Camera getCamera(long windowId) {
         CameraSettings settings = new CameraSettings();
@@ -85,7 +74,7 @@ public class Tutorial implements Runnable {
         settings.setCameraSpeed(3.0f);
         settings.setMouseSpeed(1.0f);
 
-        return new Camera(settings, windowId);
+        return new FreeCamera(settings, windowId);
     }
 
 
@@ -93,6 +82,12 @@ public class Tutorial implements Runnable {
     public void run() {
         try {
             init();
+
+            LoaderUtils.load("oof/bighead.obj",
+                    aiProcess_GenSmoothNormals | aiProcess_JoinIdenticalVertices | aiProcess_Triangulate
+                            | aiProcess_FixInfacingNormals | aiProcess_LimitBoneWeights);
+
+
             render();
             loop();
         } catch (Exception e) {
@@ -143,38 +138,10 @@ public class Tutorial implements Runnable {
         // 50% grey background
         glClearColor(0.33f, 0.33f, 0.33f, 0.0f);
 
-        // vertexes
-        glGenVertexArrays(vertexArrayId);
-        glBindVertexArray(vertexArrayId.get());
-
-        glGenBuffersARB(vertexBuffer);
-        vertexId = vertexBuffer.get();
-        glBindBufferARB(GL_ARRAY_BUFFER_ARB, vertexId);
-        glBufferDataARB(GL_ARRAY_BUFFER_ARB, vertexBufferData, GL_STATIC_DRAW_ARB);
-
-//        // colors
-//        glGenBuffersARB(colorBuffer);
-//        colorId = colorBuffer.get();
-//        glBindBufferARB(GL_ARRAY_BUFFER_ARB, colorId);
-//        glBufferDataARB(GL_ARRAY_BUFFER_ARB, colorBufferData, GL_STATIC_DRAW_ARB);
-
-        // uvs
-        glGenBuffersARB(uvBuffer);
-        uvId = uvBuffer.get();
-        glBindBufferARB(GL_ARRAY_BUFFER_ARB, uvId);
-        glBufferDataARB(GL_ARRAY_BUFFER_ARB, ObjectMatrixSamples.uvs, GL_STATIC_DRAW_ARB);
-
-
-        // texture
-        texture = TextureUtils.loadTextureAsResource(Paths.get("texture/uvtemplate_flipped.DDS"));
-        // Get a handle for our "myTextureSampler" uniform
-        textureId = glGetUniformLocationARB(shaderProgramId, "myTextureSampler");
-        if(textureId == -1) {
-            throw new RuntimeException(String.format("\nglGetUniformLocationARB failed with params:\nshaderProgramId = %s\nname = \"myTextureSampler\"", shaderProgramId));
-        }
-
         // Get a handle for our "MVP" uniform
         matrixId = glGetUniformLocationARB(shaderProgramId, "MVP");
+
+        cube.init(shaderProgramId);
 
         // finally, show window
         glfwShowWindow(window);
@@ -221,7 +188,6 @@ public class Tutorial implements Runnable {
 
             //------------------------------------------------------------------------------------------------------------------
             camera.computeMatricesFromInputs();
-
             projection = camera.getProjection();
             view = camera.getView();
 
@@ -233,47 +199,9 @@ public class Tutorial implements Runnable {
 
             glUniformMatrix4fv(matrixId, false, modelViewProjection.get(BufferUtils.createFloatBuffer(4 * 4)));
 
-            // Bind our texture in Texture Unit 0
-            glActiveTexture(GL_TEXTURE0);
-            glBindTexture(GL_TEXTURE_2D, texture);
-            // Set our "myTextureSampler" sampler to use Texture Unit 0
-            glUniform1i(textureId, 0);
+            //---- draw calls -----
+            cube.draw();
 
-            // first attribute buffer : vertices
-            glEnableVertexAttribArrayARB(0);
-            glBindBufferARB(GL_ARRAY_BUFFER_ARB, vertexId);
-            glVertexAttribPointerARB(0, 3, GL_FLOAT, false,0, 0);
-//            // colors
-//            glEnableVertexAttribArrayARB(1);
-//            glBindBufferARB(GL_ARRAY_BUFFER_ARB, colorId);
-//            glVertexAttribPointerARB(
-//                    1,                                // attribute. No particular reason for 1, but must match the layout in the shader.
-//                    3,                                // size
-//                    GL_FLOAT,                         // type
-//                    false,                         // normalized?
-//                    0,                                // stride
-//                    0                          // array buffer offset
-//            );
-
-
-            // 2nd attribute buffer : UVs
-            glEnableVertexAttribArrayARB(1);
-            glBindBufferARB(GL_ARRAY_BUFFER_ARB, uvId);
-            glVertexAttribPointerARB(
-                    1,                                // attribute. No particular reason for 1, but must match the layout in the shader.
-                    2,                                // size : U+V => 2
-                    GL_FLOAT,                         // type
-                    false,                         // normalized?
-                    0,                                // stride
-                    0                          // array buffer offset
-		    );
-
-
-            // Draw
-            glDrawArrays(GL_TRIANGLES, 0, vertexBufferData.length);
-
-            glDisableVertexAttribArrayARB(0);
-            glDisableVertexAttribArrayARB(1);
 
             // Swap buffers
             glfwSwapBuffers(window);
@@ -284,11 +212,8 @@ public class Tutorial implements Runnable {
 
 
         // Cleanup VBO and shader
-        glDeleteBuffers(vertexId);
-        glDeleteBuffers(uvId);
         GL33.glDeleteProgram(shaderProgramId);
-        glDeleteTextures(textureId);
-        glDeleteVertexArrays(vertexArrayId);
+        cube.free();
 
         // Close OpenGL window and terminate GLFW
         glfwTerminate();

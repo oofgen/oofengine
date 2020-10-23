@@ -1,6 +1,6 @@
 package oof.oofengine.util;
 
-import oof.oofengine.data.Texture;
+import oof.oofengine.model.Texture;
 import org.junit.Test;
 
 import java.nio.file.Paths;

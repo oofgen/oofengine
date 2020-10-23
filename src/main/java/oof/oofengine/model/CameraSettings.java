@@ -1,4 +1,4 @@
-package oof.oofengine.data;
+package oof.oofengine.model;
 
 import org.joml.Vector3f;
 

@@ -1,8 +1,4 @@
-package oof.oofengine.data;
-
-import org.joml.Matrix3f;
-
-import java.nio.FloatBuffer;
+package oof.oofengine.model;
 
 public class ObjectMatrixSamples {
 

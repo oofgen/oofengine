@@ -1,18 +1,11 @@
-package oof.oofengine.data;
+package oof.oofengine.model;
 
 import net.buttology.lwjgl.dds.DDSFile;
-import org.apache.commons.io.FilenameUtils;
 import org.lwjgl.BufferUtils;
 
-import javax.imageio.ImageIO;
-import java.awt.image.BufferedImage;
-import java.awt.image.Raster;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.IntBuffer;
 import java.nio.file.Path;
-import java.util.Arrays;
 
 public class Texture {
     private DDSFile file;
