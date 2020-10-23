@@ -24,7 +24,7 @@ public class Camera {
     private Matrix4f view;
     private Vector3f direction;
     private Vector3f right;
-    private Vector3f up;
+    private Vector3f up = new Vector3f();
 
     private float horizontalAngle = 3.14f;
     // vertical angle : 0, look at the horizon
@@ -60,6 +60,9 @@ public class Camera {
         horizontalAngle += settings.getMouseSpeed() * deltaTime * (settings.getWidth()/2 - x.get() );
         verticalAngle   += settings.getMouseSpeed() * deltaTime * (settings.getHeight()/2 - y.get() );
 
+        horizontalAngle = clamp(horizontalAngle);
+        verticalAngle = clamp(verticalAngle);
+
         direction = new Vector3f(
                 (float) cos(verticalAngle) * (float) sin(horizontalAngle),
                 (float) sin(verticalAngle),
@@ -72,33 +75,65 @@ public class Camera {
                 (float) cos(horizontalAngle - 3.14f/2.0f)
         );
         // Up vector : perpendicular to both direction and right
-        up = right.cross(direction);
+
+        up = right.cross(direction, up);
+        Vector3f newUp = new Vector3f(up);
 
         // Move forward
-        if (glfwGetKey( windowId, GLFW_KEY_W ) == GLFW_PRESS){
+        if (isKeyPressed(GLFW_KEY_W)){
             position = position.add(direction.mul(deltaTime).mul(settings.getMouseSpeed()));
         }
         // Move backward
-        if (glfwGetKey( windowId, GLFW_KEY_S ) == GLFW_PRESS){
+        if (isKeyPressed(GLFW_KEY_S)){
             position = position.sub(direction.mul(deltaTime).mul(settings.getMouseSpeed()));
         }
+
         // Strafe right
-        if (glfwGetKey( windowId, GLFW_KEY_D ) == GLFW_PRESS){
-            position = position.add(right.mul(deltaTime).mul(settings.getMouseSpeed()));
+        if (isKeyPressed(GLFW_KEY_D)){
+            right = right.mul(deltaTime).mul(settings.getMouseSpeed());
+            position = position.add(right);
+            logger.info(String.valueOf(position));
         }
         // Strafe left
-        if (glfwGetKey( windowId, GLFW_KEY_A ) == GLFW_PRESS){
-            position = position.sub(right.mul(deltaTime).mul(settings.getMouseSpeed()));
+        if (isKeyPressed(GLFW_KEY_A)){
+            right = right.mul(deltaTime).mul(settings.getMouseSpeed());
+            position = position.sub(right);
         }
         direction = direction.add(position); // and looks here : at the same position, plus "direction"
 
+        // center object
+        if (isKeyPressed(GLFW_KEY_R)) {
+            direction = new Vector3f(3.320E+0f,  2.483E+0f,  2.480E+0f);
+            horizontalAngle = -171.86925f;
+            verticalAngle = 175.38533f;
+        }
+
+        if(isKeyPressed(GLFW_KEY_J)) {
+            direction = new Vector3f(0, 0, 0);
+            horizontalAngle = 0;
+            verticalAngle = 0;
+        }
+        // debug position
+        if (isKeyPressed(GLFW_KEY_L)) {
+            System.out.printf("direction: %s | horAngle: %s | verAngle: %s\r", direction, horizontalAngle, verticalAngle);
+        }
+
         projection = new Matrix4f().perspective((float) Math.toRadians(initialFoV), settings.getAspectRatio(), 0.1f, 100.0f);
-        System.out.printf("position: %s\r", position);
         view = new Matrix4f().lookAt(
                 position,           // Camera is here
-                direction,  // and looks here : at the same position, plus "direction"
+                direction,          // and looks here : at the same position, plus "direction"
                 up                  // Head is up (set to 0,-1,0 to look upside-down)
         );
+    }
+
+    private boolean isKeyPressed(int key) {
+        return glfwGetKey(windowId, key) == GLFW_PRESS;
+    }
+
+    private float clamp(float angle) {
+        if(angle > 360) return 360;
+        if(angle < -360) return 0;
+        return angle;
     }
 
     public Matrix4f getProjection() {

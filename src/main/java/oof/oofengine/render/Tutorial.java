@@ -1,6 +1,6 @@
 package oof.oofengine.render;
 
-import com.sun.istack.internal.NotNull;
+import org.jetbrains.annotations.NotNull;
 import oof.oofengine.control.Camera;
 import oof.oofengine.data.CameraSettings;
 import oof.oofengine.data.ObjectMatrixSamples;
@@ -40,8 +40,8 @@ public class Tutorial implements Runnable {
     private static final Logger logger = LoggerFactory.getLogger(Tutorial.class);
 
     private long window;
-    private float width = 1024.0f;
-    private float height = 768.0f;
+    private float width = 1024.0f / 2;
+    private float height = 768.0f / 2;
     private int shaderProgramId;
     private int matrixId;
     private final double fov = 45.0;
