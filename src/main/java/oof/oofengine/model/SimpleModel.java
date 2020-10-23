@@ -90,7 +90,7 @@ public class SimpleModel {
         }
         modelViewProjection = viewProjection.mul(model, modelViewProjection);
 
-        glUniformMatrix4fvARB(matrixUniformHandle, false, modelViewProjection.get(BufferUtils.createFloatBuffer(4 * 4)));
+        glUniformMatrix4fvARB(matrixUniformHandle, false, modelViewProjection.get(modelMatrixBuffer));
 
         // Bind our texture in Texture Unit 0
         glActiveTexture(GL_TEXTURE0);

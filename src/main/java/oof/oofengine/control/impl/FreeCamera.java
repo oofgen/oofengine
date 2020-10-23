@@ -78,29 +78,22 @@ public class FreeCamera implements Camera {
         // Up vector : perpendicular to both direction and right
 
         up = right.cross(direction, up);
+        Vector3f orientation = up;
 
-        // Move forward
-        if (isKeyPressed(GLFW_KEY_W)){
-            position = position.add(direction.mul(deltaTime).mul(settings.getMouseSpeed()));
-        }
-        // Move backward
-        if (isKeyPressed(GLFW_KEY_S)){
-            position = position.sub(direction.mul(deltaTime).mul(settings.getMouseSpeed()));
-        }
-
-        // Strafe right
-        if (isKeyPressed(GLFW_KEY_D)){
-            right = right.mul(deltaTime).mul(settings.getMouseSpeed());
-            position = position.add(right);
-            logger.info(String.valueOf(position));
-        }
-        // Strafe left
-        if (isKeyPressed(GLFW_KEY_A)){
-            right = right.mul(deltaTime).mul(settings.getMouseSpeed());
-            position = position.sub(right);
-        }
+        handleControlInput(deltaTime);
         direction = direction.add(position); // and looks here : at the same position, plus "direction"
 
+        handleDebugInput();
+
+        projection = new Matrix4f().perspective((float) Math.toRadians(initialFoV), settings.getAspectRatio(), 0.1f, 100.0f);
+        view = new Matrix4f().lookAt(
+                position,           // Camera is here
+                direction,          // and looks here : at the same position, plus "direction"
+                orientation         // Head is up (set to 0,-1,0 to look upside-down)
+        );
+    }
+
+    private void handleDebugInput() {
         // center object
         if (isKeyPressed(GLFW_KEY_R)) {
             direction = new Vector3f(3.320E+0f,  2.483E+0f,  2.480E+0f);
@@ -117,13 +110,45 @@ public class FreeCamera implements Camera {
         if (isKeyPressed(GLFW_KEY_L)) {
             System.out.printf("direction: %s | horAngle: %s | verAngle: %s\r", direction, horizontalAngle, verticalAngle);
         }
+    }
 
-        projection = new Matrix4f().perspective((float) Math.toRadians(initialFoV), settings.getAspectRatio(), 0.1f, 100.0f);
-        view = new Matrix4f().lookAt(
-                position,           // Camera is here
-                direction,          // and looks here : at the same position, plus "direction"
-                up                  // Head is up (set to 0,-1,0 to look upside-down)
-        );
+    private void handleControlInput(float deltaTime) {
+        // Move forward
+        if (isKeyPressed(GLFW_KEY_W)){
+            direction = direction.mul(deltaTime).mul(settings.getMouseSpeed());
+            position = position.add(direction);
+        }
+        // Move backward
+        if (isKeyPressed(GLFW_KEY_S)){
+            direction = direction.mul(deltaTime).mul(settings.getMouseSpeed());
+            position = position.sub(direction);
+        }
+        // Strafe right
+        if (isKeyPressed(GLFW_KEY_D)){
+            right = right.mul(deltaTime).mul(settings.getMouseSpeed());
+            position = position.add(right);
+            logger.info(String.valueOf(position).concat(" | ").concat(String.valueOf(right)));
+        }
+        // Strafe left
+        if (isKeyPressed(GLFW_KEY_A)){
+            right = right.mul(deltaTime).mul(settings.getMouseSpeed());
+            position = position.sub(right);
+        }
+        // Strafe right
+        if (isKeyPressed(GLFW_KEY_X)){
+            up = up.mul(deltaTime).mul(settings.getMouseSpeed());
+            position = position.add(up);
+        }
+        // Strafe left
+        if (isKeyPressed(GLFW_KEY_Z)){
+            up = up.mul(deltaTime).mul(settings.getMouseSpeed());
+            position = position.sub(up);
+        }
+    }
+
+    protected void modifyPosition(Vector3f factor, float deltaTime) {
+        factor = factor.mul(deltaTime).mul(settings.getMouseSpeed());
+        position = position.add(factor);
     }
 
     protected boolean isKeyPressed(int key) {
