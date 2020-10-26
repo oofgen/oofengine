@@ -19,16 +19,20 @@ import static org.lwjgl.opengl.ARBVertexShader.GL_VERTEX_SHADER_ARB;
 
 public class ShaderManager {
     private static final Logger logger = LoggerFactory.getLogger(ShaderManager.class);
+    private static Shader shader;
 
-    public static int loadShaderProgram(String vertexShader, String fragmentShader) throws Exception {
+    public static Shader getShader() {
+        if(shader == null) {
+            throw new RuntimeException("No shaders loaded!");
+        } else return shader;
+    }
+
+    public static Shader loadShaderProgram(String vertexShader, String fragmentShader) throws Exception {
         logger.info("loading shaders...");
         int programId = glCreateProgramObjectARB();
-
-        int vertexShaderId = createShader(vertexShader, GL_VERTEX_SHADER_ARB);
-        int fragmentShaderId = createShader(fragmentShader, GL_FRAGMENT_SHADER_ARB);
-
-        glAttachObjectARB(programId, vertexShaderId);
-        glAttachObjectARB(programId, fragmentShaderId);
+        shader = new Shader(programId);
+        shader.createVertexShader(vertexShader);
+        shader.createFragmentShader(fragmentShader);
         glLinkProgramARB(programId);
 
         // check shaderProgram link
@@ -42,31 +46,6 @@ public class ShaderManager {
         }
 
         logger.info("loaded.");
-        return programId;
-    }
-
-    public static int createShader(String resource, int type) throws IOException {
-        logger.info("Compiling shader: {}", resource); //with source \n----\n{}\n----\n", resource, shaderSource);
-
-        int shader = glCreateShaderObjectARB(type);
-
-        URL shaderPath = OofEngineApplication.class.getClassLoader().getResource(resource);
-        File shaderFile = new File(shaderPath.getFile());
-        String shaderSource = FileUtils.readFileToString(shaderFile, Charset.defaultCharset());
-
-        glShaderSourceARB(shader, shaderSource);
-        glCompileShaderARB(shader);
-
-        // check shader compilation
-        String shaderLog = GL33.glGetShaderInfoLog(shader);
-        if(shaderLog.trim().length() > 0) {
-            logger.info(shaderLog);
-        }
-        int compiled = GL33.glGetShaderi(shader, GL33.GL_COMPILE_STATUS);
-        if (compiled == 0) {
-            throw new RuntimeException("Could not compile shader");
-        }
-
         return shader;
     }
 }

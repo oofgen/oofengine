@@ -1,9 +1,10 @@
 package oof.oofengine.render;
 
 import oof.oofengine.control.Camera;
-import oof.oofengine.data.LoaderUtils;
-import oof.oofengine.model.Model;
+import oof.oofengine.data.Constants;
 import oof.oofengine.model.SimpleModel;
+import oof.oofengine.model.api.IModel;
+import oof.oofengine.render.shader.Shader;
 import org.jetbrains.annotations.NotNull;
 import oof.oofengine.control.impl.FreeCamera;
 import oof.oofengine.model.CameraSettings;
@@ -11,7 +12,6 @@ import oof.oofengine.model.ObjectMatrixSamples;
 import oof.oofengine.render.shader.ShaderManager;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
-import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.GL;
 import org.lwjgl.opengl.GL33;
 import org.slf4j.Logger;
@@ -19,7 +19,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.ConcurrentHashMap;
 
-import static org.lwjgl.assimp.Assimp.*;
+import static oof.oofengine.util.MiscUtils.handleGLErrors;
 import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.ARBShaderObjects.glGetUniformLocationARB;
 import static org.lwjgl.opengl.ARBShaderObjects.glUniformMatrix4fvARB;
@@ -39,7 +39,7 @@ public class Tutorial implements Runnable {
     private long window;
     private float width = 1024.0f / 2;
     private float height = 768.0f / 2;
-    private int shader;
+    private Shader shader;
     private int matrixUniformHandle;
     private final double fov = 45.0;
     private final float aspectRatio = width / height;
@@ -51,7 +51,7 @@ public class Tutorial implements Runnable {
     Matrix4f modelViewProjection = new Matrix4f();
     Matrix4f viewProjection = new Matrix4f();
 
-    ConcurrentHashMap<String, Model> models = new ConcurrentHashMap<String, Model>();
+    ConcurrentHashMap<String, IModel> models = new ConcurrentHashMap<String, IModel>();
 
     private Camera camera;
     private final SimpleModel cube = new SimpleModel(ObjectMatrixSamples.cube, "texture/uvtemplate_flipped.DDS");
@@ -95,9 +95,9 @@ public class Tutorial implements Runnable {
 
         window = glfwCreateWindow((int) width, (int) height, "ChristianTest2", NULL, NULL);
         if( window == NULL) {
-            logger.error("Failed to open GLFW window.");
+            logger.error(Constants.ERROR_FAILED_TO_OPEN_GLFW_WINDOW);
             glfwTerminate();
-            throw new RuntimeException();
+            throw new RuntimeException(Constants.ERROR_FAILED_TO_OPEN_GLFW_WINDOW);
         }
 
         camera = getCamera(window);
@@ -107,7 +107,7 @@ public class Tutorial implements Runnable {
 
         // Ensure we can capture the escape key being pressed below
         glfwSetInputMode(window, GLFW_STICKY_KEYS, GL_TRUE);
-        // Hide the mouse and enable unlimited mouvement
+        // Hide the mouse and enable unlimited shmovement
         glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
         // Set the mouse at the center of the screen
@@ -128,8 +128,8 @@ public class Tutorial implements Runnable {
         // 50% grey background
         glClearColor(0.33f, 0.33f, 0.33f, 0.0f);
 
-        // Get a handle for our "MVP" uniform
-        matrixUniformHandle = glGetUniformLocationARB(shader, "MVP");
+        shader.createUniform("projectionMatrix");
+        shader.createUniform("modelViewMatrix");
 
         addModels();
 
@@ -138,25 +138,26 @@ public class Tutorial implements Runnable {
     }
 
     private void addModels() {
-        models.put("oof", LoaderUtils.load("oof/bighead.obj",
-                aiProcess_GenSmoothNormals | aiProcess_JoinIdenticalVertices | aiProcess_Triangulate
-                        | aiProcess_FixInfacingNormals | aiProcess_LimitBoneWeights));
+        //models.put("oof", LoaderUtils.load("oof/bighead.obj",
+        //        aiProcess_GenSmoothNormals | aiProcess_JoinIdenticalVertices | aiProcess_Triangulate
+        //                | aiProcess_FixInfacingNormals | aiProcess_LimitBoneWeights));
+        models.put("cube", cube);
 
-        for(Model model : models.values()) {
-            model.init();
+        for(IModel model : models.values()) {
+            model.init(shader);
         }
     }
 
     @NotNull
     private String getFragmentShader() {
-        return "shader/tutorial5/textureShader.fsh";
-        //return "shader/tutorial_3_singlecolor.fsh";
+        //return "shader/tutorial5.1/textureShader.fsh";
+        return "shader/3dGameDevWithLWJGL_Transformations/fragment.fsh";
     }
 
     @NotNull
     private String getVertexShader() {
-        return "shader/tutorial5/textureShader.vsh";
-        //return "shader/tutorial_3_simpletransform.vsh";
+        //return "shader/tutorial5.1/textureShader.vsh";
+        return "shader/3dGameDevWithLWJGL_Transformations/vertex.vsh";
     }
 
     private void setHints() {
@@ -170,24 +171,26 @@ public class Tutorial implements Runnable {
     }
 
     private void loop() {
+        boolean firstLoop;
         do {
             handleGLErrors();
             // Clear the screen. It's not mentioned before Tutorial 02, but it can cause flickering, so it's there nonetheless.
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
             // Use our shader
-            GL33.glUseProgram(shader);
+            GL33.glUseProgram(shader.getShaderHandle());
 
             //- view -----------------------------------------------------------------------------------------------------------
             camera.computeMatricesFromInputs();
             projection = camera.getProjection();
+            shader.setUniform("projectionMatrix", projection);
+
             view = camera.getView();
-            viewProjection = projection.mul(view);
             //------------------------------------------------------------------------------------------------------------------
 
             //---- draw --------------------------------------------------------------------------------------------------------
-            for(Model model : models.values()) {
-                model.draw(matrixUniformHandle, viewProjection);
+            for(IModel model : models.values()) {
+                model.draw(shader, view);
             }
             //------------------------------------------------------------------------------------------------------------------
 
@@ -199,20 +202,10 @@ public class Tutorial implements Runnable {
         while( glfwGetKey(window, GLFW_KEY_ESCAPE ) != GLFW_PRESS && !glfwWindowShouldClose(window) );
 
         // Cleanup VBO and shader
-        GL33.glDeleteProgram(shader);
+        GL33.glDeleteProgram(shader.getShaderHandle());
 
         // Close OpenGL window and terminate GLFW
         glfwTerminate();
-    }
-
-    private void handleGLErrors() {
-        int errorCode = 0;
-        do {
-            errorCode = glGetError();
-            if(errorCode != GL_NO_ERROR) {
-                logger.error(String.format("GL reported error code %s", errorCode));
-            }
-        } while(errorCode != GL_NO_ERROR);
     }
 
 }

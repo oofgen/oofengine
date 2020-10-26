@@ -1,7 +1,8 @@
 package oof.oofengine.model;
 
+import oof.oofengine.model.api.IModel;
+import oof.oofengine.render.shader.Shader;
 import org.apache.commons.lang3.builder.StandardToStringStyle;
-import org.joml.Matrix3x2fc;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.lwjgl.BufferUtils;
@@ -16,7 +17,6 @@ import static org.lwjgl.assimp.Assimp.*;
 import static org.lwjgl.opengl.ARBShaderObjects.glUniform3fvARB;
 import static org.lwjgl.opengl.ARBShaderObjects.glUniformMatrix3fvARB;
 import static org.lwjgl.opengl.ARBShaderObjects.glUniformMatrix4fvARB;
-import static org.lwjgl.opengl.ARBShaderObjects.nglUniform3fvARB;
 import static org.lwjgl.opengl.ARBVertexBufferObject.GL_ARRAY_BUFFER_ARB;
 import static org.lwjgl.opengl.ARBVertexBufferObject.GL_ELEMENT_ARRAY_BUFFER_ARB;
 import static org.lwjgl.opengl.ARBVertexBufferObject.glBindBufferARB;
@@ -28,7 +28,7 @@ import static org.lwjgl.opengl.GL11.glDrawElements;
 
 import org.apache.commons.lang3.builder.ToStringBuilder;
 
-public class Model {
+public class Model implements IModel {
 
     public AIScene scene;
     public List<Mesh> meshes;
@@ -66,6 +66,7 @@ public class Model {
     }
 
 
+    @Override
     public void free() {
         aiReleaseImport(scene);
         scene = null;
@@ -73,18 +74,20 @@ public class Model {
         materials = null;
     }
 
-    public void init() {
+    @Override
+    public void init(Shader shader) {
     }
 
-    public void draw(int matrixUniformHandle, Matrix4f viewProjection) {
+    @Override
+    public void draw(Shader shader, Matrix4f viewProjection) {
         for (Mesh mesh : meshes) {
-            glBindBufferARB(GL_ARRAY_BUFFER_ARB, mesh.vertexArrayBuffer);
-            glVertexAttribPointerARB(vertexAttribute, 3, GL_FLOAT, false, 0, 0);
-            glBindBufferARB(GL_ARRAY_BUFFER_ARB, mesh.normalArrayBuffer);
-            glVertexAttribPointerARB(normalAttribute, 3, GL_FLOAT, false, 0, 0);
+            //glBindBufferARB(GL_ARRAY_BUFFER_ARB, mesh.vertexArrayBuffer);
+            //glVertexAttribPointerARB(vertexAttribute, 3, GL_FLOAT, false, 0, 0);
+            //glBindBufferARB(GL_ARRAY_BUFFER_ARB, mesh.normalArrayBuffer);
+            //glVertexAttribPointerARB(normalAttribute, 3, GL_FLOAT, false, 0, 0);
 
             modelViewProjection = viewProjection.mul(model, modelViewProjection);
-            glUniformMatrix4fvARB(matrixUniformHandle, false, modelViewProjection.get(modelMatrixBuffer));
+            shader.setUniform("MVP", modelViewProjection);
             //glUniformMatrix4fvARB(viewProjectionMatrixUniform, false, viewProjectionMatrix.get(viewProjectionMatrixBuffer));
             //normalMatrix.set(modelMatrix).invert().transpose();
             //glUniformMatrix3fvARB(normalMatrixUniform, false, normalMatrix.get(normalMatrixBuffer));
@@ -99,5 +102,15 @@ public class Model {
             glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, mesh.elementArrayBuffer);
             glDrawElements(GL_TRIANGLES, mesh.elementCount, GL_UNSIGNED_INT, 0);
         }
+    }
+
+    @Override
+    public Vector3f getRotation() {
+        return null;
+    }
+
+    @Override
+    public Vector3f getPosition() {
+        return null;
     }
 }

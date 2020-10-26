@@ -49,6 +49,8 @@ dependencies {
     compile group: 'commons-io', name: 'commons-io', version: '2.5'
     compile group: 'org.apache.commons', name: 'commons-lang3', version: '3.7'
 
+    implementation 'it.unimi.dsi:dsiutils:2.6.8'
+
     implementation "org.lwjgl:lwjgl"
     implementation "org.lwjgl:lwjgl-assimp"
     implementation "org.lwjgl:lwjgl-bgfx"

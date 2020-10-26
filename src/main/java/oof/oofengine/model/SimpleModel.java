@@ -1,9 +1,13 @@
 package oof.oofengine.model;
 
+import oof.oofengine.model.api.IModel;
+import oof.oofengine.render.shader.Shader;
 import oof.oofengine.util.TextureUtils;
 import org.joml.Matrix4f;
+import org.joml.Vector3f;
 import org.lwjgl.BufferUtils;
 
+import java.awt.*;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 import java.nio.file.Paths;
@@ -25,7 +29,7 @@ import static org.lwjgl.opengl.GL20C.glUniform1i;
 import static org.lwjgl.opengl.GL30C.glBindVertexArray;
 import static org.lwjgl.opengl.GL30C.glGenVertexArrays;
 
-public class SimpleModel {
+public class SimpleModel implements IModel {
     private final String textureResourcePath;
     private final float[] vertexBufferData;
 
@@ -39,16 +43,21 @@ public class SimpleModel {
     private int texture;
     private boolean init;
     private FloatBuffer modelMatrixBuffer = BufferUtils.createFloatBuffer(4 * 4);
-    private Matrix4f modelViewProjection = new Matrix4f();
     // Model matrix : an identity matrix (model will be at the origin to start)
+
     private Matrix4f model = new Matrix4f().identity();
+    private Matrix4f modelView = new Matrix4f();
+    private Vector3f rotation = new Vector3f();
+    private Vector3f position = new Vector3f();
+    private float scale = 1.0f;
 
     public SimpleModel(float[] vertexBufferData, String textureResourcePath) {
         this.vertexBufferData = vertexBufferData;
         this.textureResourcePath = textureResourcePath;
     }
 
-    public void init(int shader) {
+    @Override
+    public void init(Shader shader) {
         if(checkInit()) {
             return;
         }
@@ -70,10 +79,7 @@ public class SimpleModel {
         // texture
         texture = TextureUtils.loadTextureAsResource(Paths.get(textureResourcePath));
         // Get a handle for our "myTextureSampler" uniform
-        textureId = glGetUniformLocationARB(shader, "textureSampler");
-        if(textureId == -1) {
-            throw new RuntimeException(String.format("\nglGetUniformLocationARB failed with params:\nshaderProgramId = %s\nname = \"textureSampler\"", shader));
-        }
+        textureId = shader.createUniform("texture_sampler");
     }
 
     private boolean checkInit() {
@@ -84,19 +90,29 @@ public class SimpleModel {
         return false;
     }
 
-    public void draw(int matrixUniformHandle, Matrix4f viewProjection) {
+    public Matrix4f getModelViewMatrix(Matrix4f viewMatrix) {
+        modelView.identity().translate(position).
+                rotateX((float)Math.toRadians(-rotation.x)).
+                rotateY((float)Math.toRadians(-rotation.y)).
+                rotateZ((float)Math.toRadians(-rotation.z)).
+                scale(scale);
+        Matrix4f viewCurr = new Matrix4f(viewMatrix);
+        return viewCurr.mul(modelView);
+    }
+
+    @Override
+    public void draw(Shader shader, Matrix4f view) {
         if(!init) {
             throw new RuntimeException("Trying to draw uninitialized SimpleModel!");
         }
-        modelViewProjection = viewProjection.mul(model, modelViewProjection);
 
-        glUniformMatrix4fvARB(matrixUniformHandle, false, modelViewProjection.get(modelMatrixBuffer));
+        shader.setUniform("modelViewMatrix", getModelViewMatrix(view));
 
         // Bind our texture in Texture Unit 0
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, texture);
-        // Set our "myTextureSampler" sampler to use Texture Unit 0
-        glUniform1i(textureId, 0);
+        // Set our "texture_sampler" sampler to use Texture Unit 0
+        shader.setUniform("texture_sampler", 0);
 
         // first attribute buffer : vertices
         glEnableVertexAttribArrayARB(0);
@@ -133,7 +149,17 @@ public class SimpleModel {
 
         glDisableVertexAttribArrayARB(0);
         glDisableVertexAttribArrayARB(1);
-    };
+    }
+
+    @Override
+    public Vector3f getRotation() {
+        return null;
+    }
+
+    @Override
+    public Vector3f getPosition() {
+        return null;
+    }
 
     public void free() {
         glDeleteBuffers(vertexId);
