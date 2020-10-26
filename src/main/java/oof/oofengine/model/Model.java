@@ -1,14 +1,30 @@
 package oof.oofengine.model;
 
 import org.apache.commons.lang3.builder.StandardToStringStyle;
+import org.joml.Matrix3x2fc;
+import org.joml.Matrix4f;
 import org.joml.Vector3f;
+import org.lwjgl.BufferUtils;
 import org.lwjgl.PointerBuffer;
 import org.lwjgl.assimp.*;
 
+import java.nio.FloatBuffer;
 import java.util.ArrayList;
 import java.util.List;
 
 import static org.lwjgl.assimp.Assimp.*;
+import static org.lwjgl.opengl.ARBShaderObjects.glUniform3fvARB;
+import static org.lwjgl.opengl.ARBShaderObjects.glUniformMatrix3fvARB;
+import static org.lwjgl.opengl.ARBShaderObjects.glUniformMatrix4fvARB;
+import static org.lwjgl.opengl.ARBShaderObjects.nglUniform3fvARB;
+import static org.lwjgl.opengl.ARBVertexBufferObject.GL_ARRAY_BUFFER_ARB;
+import static org.lwjgl.opengl.ARBVertexBufferObject.GL_ELEMENT_ARRAY_BUFFER_ARB;
+import static org.lwjgl.opengl.ARBVertexBufferObject.glBindBufferARB;
+import static org.lwjgl.opengl.ARBVertexProgram.glVertexAttribPointerARB;
+import static org.lwjgl.opengl.GL11.GL_FLOAT;
+import static org.lwjgl.opengl.GL11.GL_TRIANGLES;
+import static org.lwjgl.opengl.GL11.GL_UNSIGNED_INT;
+import static org.lwjgl.opengl.GL11.glDrawElements;
 
 import org.apache.commons.lang3.builder.ToStringBuilder;
 
@@ -19,6 +35,9 @@ public class Model {
     public List<Material> materials;
 
     public Vector3f position;
+    private Matrix4f model = new Matrix4f().identity();
+    private Matrix4f modelViewProjection = null;
+    private FloatBuffer modelMatrixBuffer = BufferUtils.createFloatBuffer(4 * 4);
 
     public Model(AIScene scene) {
         this.scene = scene;
@@ -52,5 +71,33 @@ public class Model {
         scene = null;
         meshes = null;
         materials = null;
+    }
+
+    public void init() {
+    }
+
+    public void draw(int matrixUniformHandle, Matrix4f viewProjection) {
+        for (Mesh mesh : meshes) {
+            glBindBufferARB(GL_ARRAY_BUFFER_ARB, mesh.vertexArrayBuffer);
+            glVertexAttribPointerARB(vertexAttribute, 3, GL_FLOAT, false, 0, 0);
+            glBindBufferARB(GL_ARRAY_BUFFER_ARB, mesh.normalArrayBuffer);
+            glVertexAttribPointerARB(normalAttribute, 3, GL_FLOAT, false, 0, 0);
+
+            modelViewProjection = viewProjection.mul(model, modelViewProjection);
+            glUniformMatrix4fvARB(matrixUniformHandle, false, modelViewProjection.get(modelMatrixBuffer));
+            //glUniformMatrix4fvARB(viewProjectionMatrixUniform, false, viewProjectionMatrix.get(viewProjectionMatrixBuffer));
+            //normalMatrix.set(modelMatrix).invert().transpose();
+            //glUniformMatrix3fvARB(normalMatrixUniform, false, normalMatrix.get(normalMatrixBuffer));
+            //glUniform3fvARB(lightPositionUniform, lightPosition.get(lightPositionBuffer));
+            //glUniform3fvARB(viewPositionUniform, viewPosition.get(viewPositionBuffer));
+
+            Material material = materials.get(mesh.mesh.mMaterialIndex());
+            //nglUniform3fvARB(ambientColorUniform, 1, material.mAmbientColor.address());
+            //nglUniform3fvARB(diffuseColorUniform, 1, material.mDiffuseColor.address());
+            //nglUniform3fvARB(specularColorUniform, 1, material.mSpecularColor.address());
+
+            glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, mesh.elementArrayBuffer);
+            glDrawElements(GL_TRIANGLES, mesh.elementCount, GL_UNSIGNED_INT, 0);
+        }
     }
 }

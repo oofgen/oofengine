@@ -75,8 +75,8 @@ public class FreeCamera implements Camera {
                 0,
                 (float) cos(horizontalAngle - 3.14f/2.0f)
         );
-        // Up vector : perpendicular to both direction and right
 
+        // Up vector : perpendicular to both direction and right
         up = right.cross(direction, up);
         Vector3f orientation = up;
 

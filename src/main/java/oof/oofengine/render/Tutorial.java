@@ -2,6 +2,7 @@ package oof.oofengine.render;
 
 import oof.oofengine.control.Camera;
 import oof.oofengine.data.LoaderUtils;
+import oof.oofengine.model.Model;
 import oof.oofengine.model.SimpleModel;
 import org.jetbrains.annotations.NotNull;
 import oof.oofengine.control.impl.FreeCamera;
@@ -15,6 +16,8 @@ import org.lwjgl.opengl.GL;
 import org.lwjgl.opengl.GL33;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.concurrent.ConcurrentHashMap;
 
 import static org.lwjgl.assimp.Assimp.*;
 import static org.lwjgl.glfw.GLFW.*;
@@ -48,6 +51,8 @@ public class Tutorial implements Runnable {
     Matrix4f modelViewProjection = new Matrix4f();
     Matrix4f viewProjection = new Matrix4f();
 
+    ConcurrentHashMap<String, Model> models = new ConcurrentHashMap<String, Model>();
+
     private Camera camera;
     private final SimpleModel cube = new SimpleModel(ObjectMatrixSamples.cube, "texture/uvtemplate_flipped.DDS");
 
@@ -73,12 +78,6 @@ public class Tutorial implements Runnable {
     public void run() {
         try {
             init();
-
-            LoaderUtils.load("oof/bighead.obj",
-                    aiProcess_GenSmoothNormals | aiProcess_JoinIdenticalVertices | aiProcess_Triangulate
-                            | aiProcess_FixInfacingNormals | aiProcess_LimitBoneWeights);
-
-
             render();
             loop();
         } catch (Exception e) {
@@ -132,10 +131,20 @@ public class Tutorial implements Runnable {
         // Get a handle for our "MVP" uniform
         matrixUniformHandle = glGetUniformLocationARB(shader, "MVP");
 
-        cube.init(shader);
+        addModels();
 
         // finally, show window
         glfwShowWindow(window);
+    }
+
+    private void addModels() {
+        models.put("oof", LoaderUtils.load("oof/bighead.obj",
+                aiProcess_GenSmoothNormals | aiProcess_JoinIdenticalVertices | aiProcess_Triangulate
+                        | aiProcess_FixInfacingNormals | aiProcess_LimitBoneWeights));
+
+        for(Model model : models.values()) {
+            model.init();
+        }
     }
 
     @NotNull
@@ -177,8 +186,9 @@ public class Tutorial implements Runnable {
             //------------------------------------------------------------------------------------------------------------------
 
             //---- draw --------------------------------------------------------------------------------------------------------
-            cube.draw(matrixUniformHandle, viewProjection);
-
+            for(Model model : models.values()) {
+                model.draw(matrixUniformHandle, viewProjection);
+            }
             //------------------------------------------------------------------------------------------------------------------
 
             // Swap buffers
@@ -190,7 +200,6 @@ public class Tutorial implements Runnable {
 
         // Cleanup VBO and shader
         GL33.glDeleteProgram(shader);
-        cube.free();
 
         // Close OpenGL window and terminate GLFW
         glfwTerminate();
