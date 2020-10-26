@@ -1,15 +1,16 @@
 package oof.oofengine.render;
 
 import oof.oofengine.control.Camera;
+import oof.oofengine.control.impl.FreeCamera;
 import oof.oofengine.data.Constants;
+import oof.oofengine.data.LoaderUtils;
+import oof.oofengine.model.CameraSettings;
+import oof.oofengine.model.ObjectMatrixSamples;
 import oof.oofengine.model.SimpleModel;
 import oof.oofengine.model.api.IModel;
 import oof.oofengine.render.shader.Shader;
-import org.jetbrains.annotations.NotNull;
-import oof.oofengine.control.impl.FreeCamera;
-import oof.oofengine.model.CameraSettings;
-import oof.oofengine.model.ObjectMatrixSamples;
 import oof.oofengine.render.shader.ShaderManager;
+import org.jetbrains.annotations.NotNull;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.lwjgl.opengl.GL;
@@ -20,15 +21,9 @@ import org.slf4j.LoggerFactory;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static oof.oofengine.util.MiscUtils.handleGLErrors;
+import static org.lwjgl.assimp.Assimp.*;
 import static org.lwjgl.glfw.GLFW.*;
-import static org.lwjgl.opengl.ARBShaderObjects.glGetUniformLocationARB;
-import static org.lwjgl.opengl.ARBShaderObjects.glUniformMatrix4fvARB;
-import static org.lwjgl.opengl.ARBVertexShader.glVertexAttribPointerARB;
 import static org.lwjgl.opengl.GL11.*;
-import static org.lwjgl.opengl.GL15.glDeleteBuffers;
-import static org.lwjgl.opengl.GL20C.glUniformMatrix4fv;
-import static org.lwjgl.opengl.GL30.glDeleteVertexArrays;
-import static org.lwjgl.opengl.GL30C.glGenVertexArrays;
 import static org.lwjgl.system.MemoryUtil.NULL;
 
 
@@ -138,10 +133,10 @@ public class Tutorial implements Runnable {
     }
 
     private void addModels() {
-        //models.put("oof", LoaderUtils.load("oof/bighead.obj",
-        //        aiProcess_GenSmoothNormals | aiProcess_JoinIdenticalVertices | aiProcess_Triangulate
-        //                | aiProcess_FixInfacingNormals | aiProcess_LimitBoneWeights));
-        models.put("cube", cube);
+        models.put("oof", LoaderUtils.load("oof/bighead.obj",
+                aiProcess_GenSmoothNormals | aiProcess_JoinIdenticalVertices | aiProcess_Triangulate
+                        | aiProcess_FixInfacingNormals | aiProcess_LimitBoneWeights));
+        //models.put("cube", cube);
 
         for(IModel model : models.values()) {
             model.init(shader);
@@ -150,13 +145,11 @@ public class Tutorial implements Runnable {
 
     @NotNull
     private String getFragmentShader() {
-        //return "shader/tutorial5.1/textureShader.fsh";
         return "shader/3dGameDevWithLWJGL_Transformations/fragment.fsh";
     }
 
     @NotNull
     private String getVertexShader() {
-        //return "shader/tutorial5.1/textureShader.vsh";
         return "shader/3dGameDevWithLWJGL_Transformations/vertex.vsh";
     }
 

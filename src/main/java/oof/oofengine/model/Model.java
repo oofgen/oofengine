@@ -34,10 +34,14 @@ public class Model implements IModel {
     public List<Mesh> meshes;
     public List<Material> materials;
 
-    public Vector3f position;
-    private Matrix4f model = new Matrix4f().identity();
     private Matrix4f modelViewProjection = null;
     private FloatBuffer modelMatrixBuffer = BufferUtils.createFloatBuffer(4 * 4);
+
+    private Matrix4f model = new Matrix4f().identity();
+    private Matrix4f modelView = new Matrix4f();
+    private Vector3f rotation = new Vector3f();
+    private Vector3f position = new Vector3f();
+    private float scale = 1.0f;
 
     public Model(AIScene scene) {
         this.scene = scene;
@@ -78,39 +82,51 @@ public class Model implements IModel {
     public void init(Shader shader) {
     }
 
+    public Matrix4f getModelViewMatrix(Matrix4f viewMatrix) {
+        modelView.identity().translate(position).
+                rotateX((float)Math.toRadians(-rotation.x)).
+                rotateY((float)Math.toRadians(-rotation.y)).
+                rotateZ((float)Math.toRadians(-rotation.z)).
+                scale(scale);
+        Matrix4f viewCurr = new Matrix4f(viewMatrix);
+        return viewCurr.mul(modelView);
+    }
+
     @Override
-    public void draw(Shader shader, Matrix4f viewProjection) {
+    public void draw(Shader shader, Matrix4f view) {
+
+        shader.setUniform("modelViewMatrix", getModelViewMatrix(view));
+
         for (Mesh mesh : meshes) {
-            //glBindBufferARB(GL_ARRAY_BUFFER_ARB, mesh.vertexArrayBuffer);
-            //glVertexAttribPointerARB(vertexAttribute, 3, GL_FLOAT, false, 0, 0);
-            //glBindBufferARB(GL_ARRAY_BUFFER_ARB, mesh.normalArrayBuffer);
-            //glVertexAttribPointerARB(normalAttribute, 3, GL_FLOAT, false, 0, 0);
+            glBindBufferARB(GL_ARRAY_BUFFER_ARB, mesh.vertexArrayBuffer);
+            glVertexAttribPointerARB(0, 3, GL_FLOAT, false, 0, 0);
+            glBindBufferARB(GL_ARRAY_BUFFER_ARB, mesh.normalArrayBuffer);
+            glVertexAttribPointerARB(1, 3, GL_FLOAT, false, 0, 0);
 
-            modelViewProjection = viewProjection.mul(model, modelViewProjection);
-            shader.setUniform("MVP", modelViewProjection);
-            //glUniformMatrix4fvARB(viewProjectionMatrixUniform, false, viewProjectionMatrix.get(viewProjectionMatrixBuffer));
-            //normalMatrix.set(modelMatrix).invert().transpose();
-            //glUniformMatrix3fvARB(normalMatrixUniform, false, normalMatrix.get(normalMatrixBuffer));
-            //glUniform3fvARB(lightPositionUniform, lightPosition.get(lightPositionBuffer));
-            //glUniform3fvARB(viewPositionUniform, viewPosition.get(viewPositionBuffer));
+//            glUniformMatrix4fvARB(viewProjectionMatrixUniform, false,
+//            viewProjectionMatrix.get(viewProjectionMatrixBuffer));
+//            normalMatrix.set(modelMatrix).invert().transpose();
+//            glUniformMatrix3fvARB(normalMatrixUniform, false, normalMatrix.get(normalMatrixBuffer));
+//            glUniform3fvARB(lightPositionUniform, lightPosition.get(lightPositionBuffer));
+//            glUniform3fvARB(viewPositionUniform, viewPosition.get(viewPositionBuffer));
+//
+              Material material = materials.get(mesh.aiMesh.mMaterialIndex());
+//            nglUniform3fvARB(ambientColorUniform, 1, material.mAmbientColor.address());
+//            nglUniform3fvARB(diffuseColorUniform, 1, material.mDiffuseColor.address());
+//            nglUniform3fvARB(specularColorUniform, 1, material.mSpecularColor.address());
 
-            Material material = materials.get(mesh.mesh.mMaterialIndex());
-            //nglUniform3fvARB(ambientColorUniform, 1, material.mAmbientColor.address());
-            //nglUniform3fvARB(diffuseColorUniform, 1, material.mDiffuseColor.address());
-            //nglUniform3fvARB(specularColorUniform, 1, material.mSpecularColor.address());
-
-            glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, mesh.elementArrayBuffer);
-            glDrawElements(GL_TRIANGLES, mesh.elementCount, GL_UNSIGNED_INT, 0);
+              glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, mesh.elementArrayBuffer);
+              glDrawElements(GL_TRIANGLES, mesh.elementCount, GL_UNSIGNED_INT, 0);
         }
     }
 
     @Override
     public Vector3f getRotation() {
-        return null;
+        return rotation;
     }
 
     @Override
     public Vector3f getPosition() {
-        return null;
+        return position;
     }
 }

@@ -12,30 +12,30 @@ import static org.lwjgl.opengl.ARBVertexBufferObject.GL_STATIC_DRAW_ARB;
 
 public class Mesh {
 
-    public AIMesh mesh;
+    public AIMesh aiMesh;
     public int vertexArrayBuffer;
     public int normalArrayBuffer;
     public int elementArrayBuffer;
     public int elementCount;
 
-    public Mesh(AIMesh mesh) {
-        this.mesh = mesh;
+    public Mesh(AIMesh aiMesh) {
+        this.aiMesh = aiMesh;
 
         vertexArrayBuffer = glGenBuffersARB();
         glBindBufferARB(GL_ARRAY_BUFFER_ARB, vertexArrayBuffer);
-        AIVector3D.Buffer vertices = mesh.mVertices();
+        AIVector3D.Buffer vertices = aiMesh.mVertices();
         nglBufferDataARB(GL_ARRAY_BUFFER_ARB, AIVector3D.SIZEOF * vertices.remaining(),
                 vertices.address(), GL_STATIC_DRAW_ARB);
 
         normalArrayBuffer = glGenBuffersARB();
         glBindBufferARB(GL_ARRAY_BUFFER_ARB, normalArrayBuffer);
-        AIVector3D.Buffer normals = mesh.mNormals();
+        AIVector3D.Buffer normals = aiMesh.mNormals();
         nglBufferDataARB(GL_ARRAY_BUFFER_ARB, AIVector3D.SIZEOF * normals.remaining(), normals.address(), GL_STATIC_DRAW_ARB);
 
-        int faceCount = mesh.mNumFaces();
+        int faceCount = aiMesh.mNumFaces();
         elementCount = faceCount * 3;
         IntBuffer elementArrayBufferData = BufferUtils.createIntBuffer(elementCount);
-        AIFace.Buffer facesBuffer = mesh.mFaces();
+        AIFace.Buffer facesBuffer = aiMesh.mFaces();
         for (int i = 0; i < faceCount; ++i) {
             AIFace face = facesBuffer.get(i);
             if (face.mNumIndices() != 3) {
