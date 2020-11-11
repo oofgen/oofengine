@@ -3,12 +3,15 @@ package oof.oofengine.model;
 import oof.oofengine.model.api.IModel;
 import oof.oofengine.render.shader.Shader;
 import org.apache.commons.lang3.builder.StandardToStringStyle;
+import org.joml.Matrix3f;
 import org.joml.Matrix4f;
+import org.joml.Matrix4fStack;
 import org.joml.Vector3f;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.PointerBuffer;
 import org.lwjgl.assimp.*;
 
+import java.lang.reflect.Array;
 import java.nio.FloatBuffer;
 import java.util.ArrayList;
 import java.util.List;
@@ -42,6 +45,8 @@ public class Model implements IModel {
     private Vector3f rotation = new Vector3f();
     private Vector3f position = new Vector3f();
     private float scale = 1.0f;
+    private Matrix3f normal = new Matrix3f();
+    private FloatBuffer normalMatrixBuffer = BufferUtils.createFloatBuffer(3 * 3);
 
     public Model(AIScene scene) {
         this.scene = scene;
@@ -83,7 +88,7 @@ public class Model implements IModel {
     }
 
     public Matrix4f getModelViewMatrix(Matrix4f viewMatrix) {
-        modelView.identity().translate(position).
+        model.identity().translate(position).
                 rotateX((float)Math.toRadians(-rotation.x)).
                 rotateY((float)Math.toRadians(-rotation.y)).
                 rotateZ((float)Math.toRadians(-rotation.z)).
@@ -95,22 +100,19 @@ public class Model implements IModel {
     @Override
     public void draw(Shader shader, Matrix4f view) {
 
-        shader.setUniform("modelViewMatrix", getModelViewMatrix(view));
 
         for (Mesh mesh : meshes) {
             glBindBufferARB(GL_ARRAY_BUFFER_ARB, mesh.vertexArrayBuffer);
             glVertexAttribPointerARB(0, 3, GL_FLOAT, false, 0, 0);
-            glBindBufferARB(GL_ARRAY_BUFFER_ARB, mesh.normalArrayBuffer);
-            glVertexAttribPointerARB(1, 3, GL_FLOAT, false, 0, 0);
+            //glBindBufferARB(GL_ARRAY_BUFFER_ARB, mesh.normalArrayBuffer);
+            //glVertexAttribPointerARB(1, 3, GL_FLOAT, false, 0, 0);
 
-//            glUniformMatrix4fvARB(viewProjectionMatrixUniform, false,
-//            viewProjectionMatrix.get(viewProjectionMatrixBuffer));
-//            normalMatrix.set(modelMatrix).invert().transpose();
-//            glUniformMatrix3fvARB(normalMatrixUniform, false, normalMatrix.get(normalMatrixBuffer));
-//            glUniform3fvARB(lightPositionUniform, lightPosition.get(lightPositionBuffer));
-//            glUniform3fvARB(viewPositionUniform, viewPosition.get(viewPositionBuffer));
-//
-              Material material = materials.get(mesh.aiMesh.mMaterialIndex());
+            shader.setUniform("modelViewMatrix", getModelViewMatrix(view));
+            normal.set(model).invert().transpose();
+
+            //glUniformMatrix3fvARB(shader.getUniformHandle("aNormal"), false, normal.get(normalMatrixBuffer));
+
+              //Material material = materials.get(mesh.aiMesh.mMaterialIndex());
 //            nglUniform3fvARB(ambientColorUniform, 1, material.mAmbientColor.address());
 //            nglUniform3fvARB(diffuseColorUniform, 1, material.mDiffuseColor.address());
 //            nglUniform3fvARB(specularColorUniform, 1, material.mSpecularColor.address());
