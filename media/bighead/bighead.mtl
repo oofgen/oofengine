@@ -1,0 +1,14 @@
+newmtl Meshpart1Mtl
+
+Ns 9
+Ka 1 1 1
+Kd 1 1 1
+Ks 0.4 0.4 0.4
+
+d 1
+illum 2
+
+map_Ka ooftex.png
+map_Kd ooftex.png
+map_d ooftex.png
+

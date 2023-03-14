@@ -1,0 +1,14 @@
+# Blender 3.4.1 MTL File: 'bighead.blend'
+# www.blender.org
+
+newmtl Meshpart1Mtl
+Ns 8.999994
+Ka 1.000000 1.000000 1.000000
+Kd 1.000000 1.000000 1.000000
+Ks 0.400000 0.400000 0.400000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1
+illum 2
+map_Kd ooftex.png
+map_d ooftex.png
